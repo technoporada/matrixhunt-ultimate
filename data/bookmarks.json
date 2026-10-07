@@ -1,0 +1,53 @@
+{
+  "categories": [
+    {
+      "name": "Polish Gaming Sites",
+      "icon": "🇵🇱",
+      "links": [
+        { "name": "LowcyGier.pl", "url": "https://lowcygier.pl", "desc": "Polish gaming news and deals" },
+        { "name": "Pepper.pl - Gry", "url": "https://www.pepper.pl/grupy/gry", "desc": "Gaming deals community" },
+        { "name": "Papper.pl", "url": "https://papper.pl", "desc": "Price tracking and alerts" },
+        { "name": "CDAction", "url": "https://www.cdaction.pl", "desc": "Polish gaming magazine" },
+        { "name": "Polygamia", "url": "https://polygamia.pl", "desc": "Polish gaming portal" },
+        { "name": "Graczpospolita", "url": "https://graczpospolita.pl", "desc": "Gaming news in Polish" }
+      ]
+    },
+    {
+      "name": "Game Stores",
+      "icon": "🛒",
+      "links": [
+        { "name": "Steam", "url": "https://store.steampowered.com", "desc": "PC game store" },
+        { "name": "Epic Games Store", "url": "https://store.epicgames.com", "desc": "Weekly free games" },
+        { "name": "GOG", "url": "https://www.gog.com", "desc": "DRM-free games" },
+        { "name": "Humble Bundle", "url": "https://www.humblebundle.com", "desc": "Bundle deals and store" },
+        { "name": "Itch.io", "url": "https://itch.io/games/free", "desc": "Indie and free games" },
+        { "name": "IndieGala", "url": "https://www.indiegala.com", "desc": "Indie game bundles" },
+        { "name": "Fanatical", "url": "https://www.fanatical.com", "desc": "Game bundles and deals" }
+      ]
+    },
+    {
+      "name": "AI Assistants",
+      "icon": "🤖",
+      "links": [
+        { "name": "DeepSeek", "url": "https://chat.deepseek.com", "desc": "DeepSeek AI chat" },
+        { "name": "ChatGPT", "url": "https://chat.openai.com", "desc": "OpenAI ChatGPT" },
+        { "name": "Claude", "url": "https://claude.ai", "desc": "Anthropic Claude" },
+        { "name": "Gemini", "url": "https://gemini.google.com", "desc": "Google Gemini" },
+        { "name": "Perplexity", "url": "https://www.perplexity.ai", "desc": "AI search engine" },
+        { "name": "Copilot", "url": "https://copilot.microsoft.com", "desc": "Microsoft Copilot" }
+      ]
+    },
+    {
+      "name": "Tools & Security",
+      "icon": "🔧",
+      "links": [
+        { "name": "ProtonMail", "url": "https://mail.proton.me", "desc": "Encrypted email" },
+        { "name": "VirusTotal", "url": "https://www.virustotal.com", "desc": "File/URL scanner" },
+        { "name": "Have I Been Pwned", "url": "https://haveibeenpwned.com", "desc": "Data breach checker" },
+        { "name": "PCGamingWiki", "url": "https://www.pcgamingwiki.com", "desc": "PC game fixes and tweaks" },
+        { "name": "CanYouRunIt", "url": "https://www.systemrequirementslab.com", "desc": "Check if you can run a game" },
+        { "name": "IsThereAnyDeal", "url": "https://isthereanydeal.com", "desc": "Best game deal finder" }
+      ]
+    }
+  ]
+}

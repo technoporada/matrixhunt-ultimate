@@ -1,0 +1,310 @@
+/* MatrixHunt Ultimate - shared theme layer.
+ *
+ * Three palettes:
+ *   matrix (default) - black background, phosphor green, glow, rain animation
+ *   night            - black background, plain light text, no glow, no rain
+ *   day              - white background, near-black text, no glow, no rain
+ *
+ * The active palette is selected with [data-theme] on <html>, so it can be
+ * swapped at runtime without reloading. Every page links this file after its
+ * own :root block so these declarations win on equal specificity + order.
+ */
+
+/* ---------- matrix (default) ---------- */
+[data-theme="matrix"] {
+    --green: #0f0;
+    --dim: rgba(0, 255, 0, 0.15);
+    --bg: #000;
+    --card: rgba(0, 20, 0, 0.85);
+    --glow: 0 0 10px #0f0, 0 0 20px rgba(0, 255, 0, 0.3);
+    --red: #f00;
+    --orange: #ff8800;
+    --cyan: #0ff;
+    --text: #0f0;
+    --border: #0f0;
+    --shadow: none;
+    --scanline-opacity: 0.06;
+    --muted: #0a0;
+}
+
+/* ---------- night: black & white ---------- */
+[data-theme="night"] {
+    --green: #e8e8e8;
+    --dim: rgba(255, 255, 255, 0.14);
+    --bg: #000;
+    --card: rgba(255, 255, 255, 0.06);
+    --glow: none;
+    --red: #ff5f5f;
+    --orange: #ffc266;
+    --cyan: #7fdfff;
+    --text: #ededed;
+    --border: #6a6a6a;
+    --shadow: none;
+    --scanline-opacity: 0.02;
+    --muted: #9a9a9a;
+}
+
+/* ---------- day: white & black ---------- */
+[data-theme="day"] {
+    --green: #111;
+    --dim: rgba(0, 0, 0, 0.08);
+    --bg: #f7f7f5;
+    --card: rgba(255, 255, 255, 0.96);
+    --glow: none;
+    --red: #c02626;
+    --orange: #a35a00;
+    --cyan: #0a6f8a;
+    --text: #16161a;
+    --border: #2b2b2b;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    --scanline-opacity: 0;
+    --muted: #5a5a5e;
+}
+
+/* ---------- matrix (default) ---------- */
+[data-theme="matrix"] {
+    --dark-bg: #050505;
+    --card-bg: rgba(0, 60, 0, 0.95);
+    --dim-green: rgba(0, 255, 0, 0.15);
+    --ok: #00ff00;
+    --mid: #aaff00;
+    --warn: #ffaa00;
+    --bad: #ff4400;
+}
+
+/* index.html uses its own --dark-bg/--card-bg/--dim-green names. */
+[data-theme="night"] {
+    --dark-bg: #000;
+    --card-bg: rgba(255, 255, 255, 0.06);
+    --dim-green: rgba(255, 255, 255, 0.14);
+    --ok: #8fff8f;
+    --mid: #d6d6d6;
+    --warn: #ffc266;
+    --bad: #ff5f5f;
+}
+
+[data-theme="day"] {
+    --dark-bg: #f7f7f5;
+    --card-bg: rgba(255, 255, 255, 0.96);
+    --dim-green: rgba(0, 0, 0, 0.08);
+    --ok: #1a7a1a;
+    --mid: #6a7a00;
+    --warn: #a35a00;
+    --bad: #c02626;
+}
+
+/* Apply palette to elements that use the shared variables. */
+[data-theme] body {
+    background: var(--bg);
+    color: var(--text);
+}
+
+[data-theme] a {
+    color: var(--green);
+}
+
+[data-theme="day"] a,
+[data-theme="night"] a {
+    text-decoration-color: var(--border);
+}
+
+/* The matrix rain belongs to the matrix palette only. */
+[data-theme="night"] canvas#matrix-bg,
+[data-theme="day"] canvas#matrix-bg,
+[data-theme="night"] .scanlines,
+[data-theme="day"] .scanlines,
+[data-theme="night"] #scanlines,
+[data-theme="day"] #scanlines {
+    display: none !important;
+}
+
+/* Glow is matrix-only; nothing else should emit it. */
+[data-theme="night"] *,
+[data-theme="day"] * {
+    text-shadow: none !important;
+}
+
+/* Cards and panels that hardcode a translucent green tint. */
+[data-theme="night"] .card,
+[data-theme="day"] .card,
+[data-theme="night"] .delisted-card,
+[data-theme="day"] .delisted-card,
+[data-theme="night"] .driver-card,
+[data-theme="day"] .driver-card,
+[data-theme="night"] .vault-card,
+[data-theme="day"] .vault-card,
+[data-theme="night"] .game-card,
+[data-theme="day"] .game-card,
+[data-theme="night"] .link-card,
+[data-theme="day"] .link-card,
+[data-theme="night"] .bookmark-card,
+[data-theme="day"] .bookmark-card {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+/* Inline "color:#0f0"-style accents are rewritten for the plain palettes. */
+[data-theme="night"] .accent,
+[data-theme="day"] .accent {
+    color: var(--green) !important;
+}
+
+/* ---------- nav tabs (retro.html) ---------- */
+/* .nav-tabs carries a hardcoded near-black background and .nav-tab.active a
+   hardcoded black label, both of which disappear on the light palette. */
+[data-theme] .nav-tabs {
+    background: var(--card);
+    border-bottom-color: var(--border);
+}
+
+[data-theme] .nav-tab {
+    color: var(--text);
+    border-right-color: var(--border);
+}
+
+[data-theme] .nav-tab.active {
+    background: var(--text);
+    color: var(--bg);
+}
+
+/* Secondary text inside cards: the pages hardcode #0a0 here. --dim is a
+   translucent tint, so it is only used for backgrounds; text needs a real
+   colour or it disappears on the light palette. */
+[data-theme] .card .systems,
+[data-theme] .vault-card .format {
+    color: var(--muted);
+}
+
+[data-theme] .emu-bar-track {
+    background: var(--dim);
+    border-color: var(--border);
+}
+
+[data-theme] .emu-bar-fill {
+    background: var(--green);
+}
+
+/* Section headers and rules drawn with hardcoded green. */
+[data-theme] .section-title,
+[data-theme] .scan-section,
+[data-theme] .scan-section h3,
+[data-theme] .tier-header,
+[data-theme] .preset-card {
+    border-color: var(--border);
+    color: var(--text);
+    background: var(--card);
+}
+
+/* header h1 sits on a hardcoded near-black plate. */
+[data-theme] header h1 {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+/* ---------- dashboard controls (index.html) ---------- */
+/* The dashboard paints its bars and buttons with hardcoded near-black
+   backgrounds, which swallow the light palette. */
+[data-theme] .stats-bar {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+[data-theme] .controls select,
+[data-theme] .controls input,
+[data-theme] button,
+[data-theme] .btn {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+[data-theme] .controls input::placeholder {
+    color: var(--muted);
+}
+
+[data-theme] button:hover,
+[data-theme] .btn:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+[data-theme] .btn-fav-active {
+    background: var(--text) !important;
+    color: var(--bg) !important;
+}
+
+[data-theme] .game-card {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+[data-theme] .game-card .desc {
+    color: var(--muted);
+}
+
+/* Status badges keep a colour per state, but the green-on-green pair fails on
+   the light palette, so only the two green badges are re-mapped. */
+[data-theme="night"] .badge-price,
+[data-theme="day"] .badge-price,
+[data-theme="night"] .badge-free,
+[data-theme="day"] .badge-free {
+    color: var(--green);
+    border-color: var(--border);
+}
+
+[data-theme="night"] .badge-free,
+[data-theme="day"] .badge-free {
+    background: var(--dim);
+}
+
+[data-theme] header h1 {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+[data-theme] .shortcuts-hint,
+[data-theme] footer {
+    color: var(--muted);
+}
+
+/* Shared toggle button */
+#mh-theme-toggle {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 9998;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72em;
+    letter-spacing: 0.08em;
+    padding: 8px 14px;
+    cursor: pointer;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    box-shadow: var(--shadow);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+#mh-theme-toggle:hover {
+    background: var(--dim);
+}
+
+#mh-theme-toggle:focus-visible {
+    outline: 2px solid var(--border);
+    outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+    #mh-theme-toggle {
+        top: 8px;
+        right: 8px;
+        font-size: 0.62em;
+        padding: 6px 10px;
+    }
+}
