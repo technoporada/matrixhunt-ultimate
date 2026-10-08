@@ -12,11 +12,16 @@ cd "$(dirname "$0")/.." || exit 1
 SKUTKI=0
 
 echo "[1] Prywatne ścieżki"
-if grep -rInE "/home/[a-z0-9]+/|~/[A-Z]?[a-z]*/[A-Za-z/]*|C:\\\\Users\\\\" \
-     --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules \
-     --exclude-dir=__pycache__ --exclude=scan_wyciekow.sh . 2>/dev/null | head -10
-then
-  echo "    ↑ coś wskazuje na katalog użytkownika. Wyklucz to w .gitignore"
+# Tylko ścieżki pasujące do mojej maszyny. "~shared/do/~/click" z listy
+# reklamowej to fałszywy alarm, więc nie dopasowuję goślepnie każdego "~".
+TROJKI="/home/[a-z0-9]+/([A-Za-z0-9._-]+/)+|/home/[a-z0-9]+/[A-Za-z0-9._-]+|[A-Z]:\\\\Users\\\\[A-Za-z0-9._-]+"
+# Skan tylko plików TRACKOWANYCH przez git. Pliki wykluczone w .gitignore
+# zostają na dysku i nie wychodzą na GitHub — nie ma ich po co alarmować.
+PLIKI=$(git ls-files | grep -v "^tools/scan_wyciekow.sh$")
+WYNIK=$(grep -InE "$TROJKI" $PLIKI 2>/dev/null | head -10)
+if [ -n "$WYNIK" ]; then
+  echo "$WYNIK"
+  echo "    ↑ ścieżka do katalogu użytkownika. Wyklucz w .gitignore i wywal z indeksu"
   SKUTKI=1
 else
   echo "    czysto"
