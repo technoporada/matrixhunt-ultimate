@@ -1,0 +1,170 @@
+{
+  "platforms": {
+    "pc": {
+      "name": "PC Emulators",
+      "emulators": [
+        { "name": "RetroArch", "url": "https://www.retroarch.com", "desc": "Multi-system emulator frontend", "systems": "NES, SNES, Genesis, PS1, N64, Arcade, and more" },
+        { "name": "Dolphin", "url": "https://dolphin-emu.org", "desc": "GameCube & Wii emulator", "systems": "GameCube, Wii" },
+        { "name": "PCSX2", "url": "https://pcsx2.net", "desc": "PlayStation 2 emulator", "systems": "PlayStation 2" },
+        { "name": "PPSSPP", "url": "https://www.ppsspp.org", "desc": "PSP emulator", "systems": "PlayStation Portable" },
+        { "name": "Cemu", "url": "https://cemu.info", "desc": "Wii U emulator", "systems": "Wii U" },
+        { "name": "Xemu", "url": "https://xemu.app", "desc": "Original Xbox emulator", "systems": "Xbox" },
+        { "name": "Flycast", "url": "https://github.com/flyinghead/flycast", "desc": "Dreamcast emulator", "systems": "Dreamcast, Naomi, Atomiswave" },
+        { "name": "Lime3DS", "url": "https://github.com/Lime3DS/Lime3DS", "desc": "3DS emulator (fork of Citra)", "systems": "Nintendo 3DS" },
+        { "name": "Sudachi", "url": "https://github.com/sudachi-emu/sudachi", "desc": "Switch emulator", "systems": "Nintendo Switch" }
+      ]
+    },
+    "android": {
+      "name": "Android Emulators",
+      "emulators": [
+        { "name": "PPSSPP", "url": "https://play.google.com/store/apps/details?id=org.ppsspp.ppsspp", "desc": "PSP emulator for Android", "systems": "PlayStation Portable" },
+        { "name": "DraStic", "url": "https://play.google.com/store/apps/details?id=com.dsemu.drastic", "desc": "Nintendo DS emulator", "systems": "Nintendo DS" },
+        { "name": "MyBoy!", "url": "https://play.google.com/store/apps/details?id=com.fastemulator.gba", "desc": "GBA emulator", "systems": "Game Boy Advance" },
+        { "name": "M64Plus FZ", "url": "https://play.google.com/store/apps/details?id=org.m64plus_fz", "desc": "Nintendo 64 emulator", "systems": "Nintendo 64" },
+        { "name": "Dolphin", "url": "https://play.google.com/store/apps/details?id=org.dolphinemu.dolphinemu", "desc": "GameCube/Wii on Android", "systems": "GameCube, Wii" },
+        { "name": "AetherSX2", "url": "https://aethersx2.com", "desc": "PS2 emulator for Android", "systems": "PlayStation 2" }
+      ]
+    }
+  },
+  "romSources": [
+    { "name": "Archive.org - ROMs", "url": "https://archive.org/details/software", "desc": "Legal ROMs and homebrew" },
+    { "name": "Homebrew World", "url": "https://www.homebrewworld.dk", "desc": "Homebrew games and software" },
+    { "name": "itch.io - Game Assets", "url": "https://itch.io/game-assets/free", "desc": "Free game assets and ROMs" },
+    { "name": "Lovely Romhacking", "url": "https://www.romhacking.net", "desc": "Game translations and patches" },
+    { "name": "MAME", "url": "https://www.mamedev.org/roms", "desc": "Arcade ROMs (MAME format)" }
+  ],
+  "controllerGuide": {
+    "title": "Controller Setup Guide",
+    "steps": [
+      "Connect your controller via USB or Bluetooth",
+      "On Windows: Controllers are usually auto-detected. Use x360ce if needed.",
+      "On Linux: Use 'jstest /dev/input/js0' to verify detection",
+      "On Android: Bluetooth pair then configure in emulator settings",
+      "Map buttons in each emulator's input settings",
+      "Test with pad_test.html in the MatrixHunt dashboard"
+    ],
+    "recommended": [
+      "Xbox Series Controller (best compatibility)",
+      "PS5 DualSense (good with Steam Input)",
+      "8BitDo Pro 2 (best for retro gaming)"
+    ]
+  },
+  "archiveVault": {
+    "PS1_PS2": {
+      "name": "Sony PlayStation 1 & 2 (Redump)",
+      "url": "https://archive.org/details/sony-playstation-1-isos",
+      "url2": "https://archive.org/details/sony-playstation-2-isos",
+      "format": ".bin / .cue / .iso",
+      "safety": "100% CLEAN - Digital Preservation Project"
+    },
+    "PSP": {
+      "name": "Sony PlayStation Portable",
+      "url": "https://archive.org/details/psp-iso-collection",
+      "format": ".iso / .cso",
+      "safety": "100% CLEAN - No Ads / No Captcha"
+    },
+    "Xbox_Xbox360": {
+      "name": "Xbox & Xbox 360 (Rockdump)",
+      "url": "https://archive.org/details/xbox-iso-collection",
+      "url2": "https://archive.org/details/xbox360-iso-archive",
+      "format": ".iso / .xex",
+      "safety": "100% CLEAN"
+    },
+    "GameCube_Wii": {
+      "name": "Nintendo GameCube & Wii (Redump)",
+      "url": "https://archive.org/details/nintendo-gamecube-isos",
+      "url2": "https://archive.org/details/nintendo-wii-isos",
+      "format": ".iso / .rvz",
+      "safety": "100% CLEAN"
+    },
+    "Dreamcast": {
+      "name": "Sega Dreamcast (Redump)",
+      "url": "https://archive.org/details/sega-dreamcast-isos",
+      "format": ".gdi / .cdi / .chd",
+      "safety": "100% CLEAN"
+    }
+  },
+  "delistedSteam": {
+    "description": "Legendary games removed from Steam (license, publisher issues)",
+    "source": "DelistedSteam scraper + Archive.org",
+    "top_games": [
+      { "title": "Spec Ops: The Line", "reason": "License expired", "appid": "204830" },
+      { "title": "Driver: San Francisco", "reason": "License expired", "appid": "334400" },
+      { "title": "Prey (2006)", "reason": "License transferred", "appid": "3970" },
+      { "title": "Wolfenstein (2009)", "reason": "License expired", "appid": "10170" },
+      { "title": "Deadpool", "reason": "License expired", "appid": "224060" },
+      { "title": "Blur", "reason": "License expired", "appid": "42640" },
+      { "title": "Dark Souls: PTDE", "reason": "Succeeded by Remastered", "appid": "211420" },
+      { "title": "Rocket League", "reason": "Epic exclusive", "appid": "252950" },
+      { "title": "GTA III/Vice City/San Andreas", "reason": "Trilogy Definitive", "appid": "various" },
+      { "title": "Dead Island", "reason": "Definitive Edition", "appid": "91310" }
+    ]
+  },
+  "adultRetro": {
+    "PC_9801": {
+      "name": "PC-9801 Japanese Retro",
+      "url": "https://archive.org/details/pc-9801-game-archive",
+      "era": "1985-2000",
+      "platforms": ["NEC PC-98", "Sharp X68000"],
+      "note": "Japanese home computer classics",
+      "safety": "100% Legal (Preservation)"
+    },
+    "JapaneseVisualNovels": {
+      "name": "Japanese Visual Novels Collection",
+      "url": "https://archive.org/details/japanese-visual-novels",
+      "era": "1990-2015",
+      "platforms": ["PC", "PC-98", "Saturn"],
+      "note": "Classic VN titles preserved for historical research",
+      "safety": "100% Legal (Preservation)"
+    },
+    "RetroEroge": {
+      "name": "Retro Eroge Archive",
+      "url": "https://archive.org/details/retro-eroge-archive",
+      "era": "1985-2005",
+      "platforms": ["PC-98", "DOS", "Windows 95"],
+      "note": "Adult gaming history preservation",
+      "safety": "100% Legal (Preservation)"
+    }
+  },
+  "flashGames": {
+    "flashpoint": {
+      "name": "Flashpoint Archive (BlueMaxima)",
+      "url": "https://flashpointarchive.org",
+      "totalGames": "220,637+",
+      "launcher": {
+        "infinity": { "name": "Flashpoint Infinity", "desc": "Lightweight streaming launcher", "url": "https://flashpointarchive.org/infinity/" },
+        "ultimate": { "name": "Flashpoint Ultimate", "desc": "Full offline archive (1TB+)", "url": "https://flashpointarchive.org/ultimate/" }
+      },
+      "technologies": ["Flash", "Shockwave", "HTML5", "Java", "Unity Web"],
+      "description": "World's largest web game preservation effort"
+    },
+    "archiveOrg": {
+      "name": "Archive.org Flash Collection",
+      "url": "https://archive.org/details/flash_games",
+      "note": "Install Ruffle extension to play .swf in browser",
+      "ruffleUrl": "https://ruffle.rs"
+    },
+    "legendaryGames": [
+      { "title": "Happy Wheels", "source": "Flashpoint", "category": "physics" },
+      { "title": "Line Rider", "source": "Flashpoint", "category": "puzzle" },
+      { "title": "N (The Way of the Ninja)", "source": "Flashpoint", "category": "platformer" },
+      { "title": "QWOP", "source": "Flashpoint", "category": "sports" },
+      { "title": "Electricman 2", "source": "Flashpoint", "category": "action" },
+      { "title": "Bloons Tower Defense 5", "source": "Flashpoint", "category": "strategy" },
+      { "title": "Fancy Pants Adventure", "source": "Flashpoint", "category": "platformer" },
+      { "title": "The Impossible Game", "source": "Flashpoint", "category": "rhythm" },
+      { "title": "Interactive Buddy", "source": "Flashpoint", "category": "sandbox" },
+      { "title": "Ultimate Custom Night", "source": "Flashpoint", "category": "horror" },
+      { "title": "Learn to Fly", "source": "Flashpoint", "category": "arcade" },
+      { "title": "Age of War", "source": "Flashpoint", "category": "strategy" },
+      { "title": "Desktop Tower Defense", "source": "Flashpoint", "category": "strategy" },
+      { "title": "Meat Boy (original)", "source": "Flashpoint", "category": "platformer" },
+      { "title": "Samorost", "source": "Flashpoint", "category": "puzzle" },
+      { "title": "Machinarium", "source": "Flashpoint", "category": "adventure" },
+      { "title": "Sonny", "source": "Flashpoint", "category": "rpg" },
+      { "title": "Dad 'n Me", "source": "Flashpoint", "category": "action" },
+      { "title": "Crush the Castle", "source": "Flashpoint", "category": "physics" },
+      { "title": "Thing-Thing", "source": "Flashpoint", "category": "action" }
+    ]
+  }
+}

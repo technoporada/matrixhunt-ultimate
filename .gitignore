@@ -1,0 +1,38 @@
+# 109 MB środowiska — nigdy do repo. Odtwarzalne: python3 -m venv .venv
+.venv/
+venv/
+
+# Baza generowana przez aplikację (zawiera stan sesji i zapisane oferty)
+*.db
+*.sqlite
+*.sqlite3
+backend/matrixhunt.db
+
+# Pliki powstające w trakcie działania — te same, które sync.sh wyklucza
+# z kopii lustrzanej. Bez tego wyciekłaby sesja i token.
+.cookies
+*.session
+.session_secret
+*.session_secret
+*.app_settings.json
+.vault_verifier
+.filterlists
+
+# Kopia usuniętego testu. W gitu nie ma sensu (to .bak), a lokalnie zostaje.
+_testy_usuniete/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.DS_Store
+
+# frontend/vendor/ ZOSTAJE w repo: React i Babel są tam po to, żeby aplikacja
+# działała offline. To świadoma decyzja, nie przypadek.
+
+# Skrypty mojej maszyny: absolutne sciezki do katalogu domowego, jeden ubija wszystko na porcie 80xx. Nie sa czescia projektu.
+sync.sh
+weryfikuj.sh
+
+# Roboczy dokument z notatkami sesji: lokalne sciezki i niedokonczone mysli.
+CEL_NAPRAWCZY.md

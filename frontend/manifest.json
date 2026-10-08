@@ -1,0 +1,19 @@
+{
+  "name": "MatrixHunt Ultimate",
+  "short_name": "MatrixHunt",
+  "description": "Free games aggregator, delisted games archive and retro gaming hub. Runs entirely locally.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
