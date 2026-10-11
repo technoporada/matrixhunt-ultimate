@@ -41,6 +41,8 @@ class GOGScraper(BaseScraper):
                             title=self.clean_title(title),
                             url=self.resolve_url(href),
                             price="Free",
+                                    price_claim="Free",
+                                    price_source="api:gog",
                             category="games",
                             source="GOG",
                             image_url=product.get("image", "") or "",

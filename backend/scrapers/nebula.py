@@ -24,7 +24,7 @@ class NebulaScraper(BaseScraper):
                         deals.append(Deal(
                             title=self.clean_title(title),
                             url=url,
-                            price="Free",
+                            **self.listed_as_free("/api/games/free"),
                             category="games",
                             source="Nebula",
                             description=game.get("description", "")[:200],

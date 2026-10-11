@@ -27,7 +27,7 @@ class ItchScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
-                                price="Free",
+                                **self.listed_as_free("/games/free"),
                                 category="games",
                                 source="Itch.io",
                                 requires_login=False,

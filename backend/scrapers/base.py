@@ -160,7 +160,13 @@ DANGEROUS_EXT = (
 class Deal:
     title: str
     url: str
+    # price is the store's own figure when we asked it. price_claim is what
+    # the source stated, price_source says which of the two it is: "api:steam"
+    # was read from the store, "listing:itch.io/games/free" was inferred from
+    # the page the item appeared on. None means nobody checked.
     price: str = "Free"
+    price_claim: str = None
+    price_source: str = None
     original_price: str = ""
     category: str = "games"
     source: str = ""
@@ -197,6 +203,20 @@ class BaseScraper(ABC):
     @abstractmethod
     async def scrape(self) -> List[Deal]:
         pass
+
+    def listed_as_free(self, listing_path=""):
+        """Cena zgłoszona przez stronę źródłową, niepotwierdzona w sklepie.
+
+        "listing:" znaczy dokładnie tyle: ta strona wymieniła to jako darmowe.
+        To nie jest pomiar ceny i nie może być tak opisywane w interfejsie.
+        Scraper, który naprawdę pyta API sklepu, nie używa tego — używa
+        api:<sklep> z odpowiedzi, którą faktycznie dostał.
+        """
+        return {
+            "price": "Free",
+            "price_claim": "Free",
+            "price_source": f"listing:{self.base_url}{listing_path}",
+        }
 
     def clean_title(self, title: str) -> str:
         """Trim, collapse whitespace and drop store prefixes.

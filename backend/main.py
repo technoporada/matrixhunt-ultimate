@@ -223,6 +223,20 @@ DISABLED_SCRAPERS = {
     "Itch.io": ItchScraper,
 }
 
+# Why each one is parked. This was a comment in the source, and /api/scrapers
+# returned status="parked" with no reason, so the dashboard could not tell the
+# user anything except that something was off. Comments are not an interface.
+PARKED_REASON = {
+    "FreeSteamKeys": "zwraca 0 ofert albo timeout — czas oczekiwania dominował każdy przebieg",
+    "Nebula": "zwraca 0 ofert albo timeout",
+    "SharewareOnSale": "zwraca 0 ofert albo timeout",
+    "Humble": "zwraca 0 ofert albo timeout",
+    "GameJolt": "zwraca 0 ofert albo timeout",
+    "GiveawayRadar": "zwraca 0 ofert albo timeout",
+    "FreeToGame": "indeksuje tylko free-to-play, a to nie jest free-to-keep — każdy wpis i tak był odrzucany",
+    "Itch.io": "/games/free zwraca strony autorów, nie giveawayy; parser stawiał price=\"Free\" bez czytania strony sklepu",
+}
+
 
 @app.get("/api/scrapers")
 async def scrapers_status():
@@ -232,7 +246,8 @@ async def scrapers_status():
     for cls in SCRAPER_CLASSES:
         active.append({"name": cls.__name__, "module": cls.__module__.split(".")[-1],
                        "status": "active"})
-    parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked"}
+    parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked",
+               "reason": PARKED_REASON.get(n, "brak zanotowanego powodu")}
               for n, c in DISABLED_SCRAPERS.items()]
     return {"active": active, "parked": parked,
             "counts": {"active": len(active), "parked": len(parked)}}
@@ -325,14 +340,18 @@ def save_deals_to_db(deals):
             if deal.url in existing_urls:
                 continue
 
-            offer = Offer(
-                title=deal.title, url=deal.url, price=deal.price,
-                original_price=deal.original_price, category=deal.category,
-                source=deal.source, description=deal.description,
-                image_url=deal.image_url, requires_login=deal.requires_login,
-                has_adfly=deal.has_adfly, has_captcha=deal.has_captcha,
-                is_adult=deal.is_adult,
-            )
+              offer = Offer(
+                  title=deal.title, url=deal.url, price=deal.price,
+                  price_claim=getattr(deal, "price_claim", None),
+                  price_source=getattr(deal, "price_source", None),
+                  price_checked=(datetime.now(timezone.utc)
+                                 if getattr(deal, "price_source", None) else None),
+                  original_price=deal.original_price, category=deal.category,
+                  source=deal.source, description=deal.description,
+                  image_url=deal.image_url, requires_login=deal.requires_login,
+                  has_adfly=deal.has_adfly, has_captcha=deal.has_captcha,
+                  is_adult=deal.is_adult,
+              )
             session.add(offer)
             existing_urls.add(deal.url)
             new_count += 1
@@ -378,8 +397,11 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
         offers = query.order_by(Offer.created_at.desc()).limit(limit).all()
         return [
             {
-                "id": o.id, "title": o.title, "url": o.url, "price": o.price,
-                "original_price": o.original_price, "category": o.category,
+                  "id": o.id, "title": o.title, "url": o.url, "price": o.price,
+                  "price_claim": o.price_claim,
+                  "price_source": o.price_source,
+                  "price_checked": o.price_checked.isoformat() if o.price_checked else None,
+                  "original_price": o.original_price, "category": o.category,
                 "source": o.source, "description": o.description,
                 "image_url": o.image_url, "requires_login": o.requires_login,
                 "has_adfly": o.has_adfly, "has_captcha": o.has_captcha,

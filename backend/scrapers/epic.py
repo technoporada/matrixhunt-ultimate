@@ -29,6 +29,8 @@ class EpicScraper(BaseScraper):
                                 title=self.clean_title(game.get("title", "")),
                                 url=f"{self.base_url}/en-US/p/{slug}" if slug else "",
                                 price="Free",
+                                    price_claim="Free",
+                                    price_source="api:epic",
                                 original_price=f"${original/100:.2f}",
                                 category="games",
                                 source="Epic Games",

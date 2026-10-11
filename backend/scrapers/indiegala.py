@@ -27,7 +27,7 @@ class IndieGalaScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
-                                price="Free",
+                                **self.listed_as_free(),
                                 category="games",
                                 source="IndieGala",
                                 requires_login=True,

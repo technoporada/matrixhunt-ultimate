@@ -29,7 +29,7 @@ class HumbleScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
-                                price="Free",
+                                **self.listed_as_free("/free"),
                                 category="games",
                                 source="Humble Bundle",
                                 requires_login=True,
