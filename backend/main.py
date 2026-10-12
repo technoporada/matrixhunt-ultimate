@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from database import init_db, Offer
+from database import init_db, Offer, PriceHistory
 from sqlalchemy import text
 
 from scrapers.gamerpower import GamerpowerScraper
@@ -370,6 +370,15 @@ def save_deals_to_db(deals):
                 # that carries a source may overwrite, so a scraper that did
                 # not check cannot wipe a figure another source did measure.
                 if getattr(deal, "price_source", None) and _apply_price(znany, deal):
+                    # Historia zapisuje stan PO zmianie; poprzedni wiersz
+                    # historii alba poprzednia wartosc oferty sa punktem
+                    # odniesienia. Bez tego "sprawdz zmiany" nie mialoby czego
+                    # pokazac, bo oferta trzyma tylko biezaca cene.
+                    session.add(PriceHistory(
+                        offer_id=znany.id,
+                        price_claim=znany.price_claim,
+                        price_source=znany.price_source,
+                    ))
                     updated_count += 1
                 continue
 
@@ -456,6 +465,31 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
             }
             for o in offers
         ]
+    finally:
+        session.close()
+
+
+@app.get("/api/price-changes")
+async def price_changes(limit: int = 30):
+    """Ostatnie zmiany cen, najnowsze pierwsze.
+
+    To jedyne miejsce, gdzie widac, ze cena sie zmienila — oferta trzyma
+    tylko biezaca wartosc. Bez ruchu sieciowego: czyta to, co zapisal scrape.
+    """
+    limit = max(1, min(int(limit), 200))
+    session = SessionFactory()
+    try:
+        rows = (session.query(PriceHistory, Offer)
+                .join(Offer, Offer.id == PriceHistory.offer_id)
+                .order_by(PriceHistory.seen_at.desc())
+                .limit(limit).all())
+        return {"count": len(rows), "changes": [
+            {"offer_id": h.offer_id, "title": o.title, "source": o.source,
+             "url": o.url, "price": o.price, "price_claim": h.price_claim,
+             "price_source": h.price_source,
+             "seen_at": h.seen_at.isoformat() if h.seen_at else None}
+            for h, o in rows
+        ]}
     finally:
         session.close()
 
