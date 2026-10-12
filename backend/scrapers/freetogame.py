@@ -29,11 +29,8 @@ class FreeToGameScraper(BaseScraper):
                         deals.append(Deal(
                             title=self.clean_title(title),
                             url=game.get("game_url", ""),
-<<<<<<< HEAD
                             **self.listed_as_free("/api/games"),
-=======
-                            price="Free",
->>>>>>> main
+                            **self.listed_as_free(),
                             category="games",
                             source="FreeToGame",
                             description=game.get("short_description", "")[:200],

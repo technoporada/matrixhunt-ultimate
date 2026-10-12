@@ -24,11 +24,7 @@ class GameJoltScraper(BaseScraper):
                         deals.append(Deal(
                             title=self.clean_title(title),
                             url=f"{self.base_url}/games/{slug}",
-<<<<<<< HEAD
                             **self.listed_as_free("/api/v1/games/"),
-=======
-                            price="Free",
->>>>>>> main
                             category="games",
                             source="GameJolt",
                             description=(game.get("description") or "")[:200],

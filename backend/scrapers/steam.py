@@ -1,5 +1,4 @@
 from typing import List
-<<<<<<< HEAD
 import asyncio
 from .base import BaseScraper, Deal
 
@@ -14,16 +13,13 @@ def _appid(url: str):
     return None
 
 
-=======
 from .base import BaseScraper, Deal
 
 
->>>>>>> main
 class SteamScraper(BaseScraper):
     def __init__(self, session=None):
         super().__init__("Steam", "https://store.steampowered.com", session)
 
-<<<<<<< HEAD
     async def _details(self, appid):
         """Steam's own answer about this app: real price, and whether it is a
         game at all. The search page's maxprice=free is a hint, not a promise —
@@ -39,8 +35,6 @@ class SteamScraper(BaseScraper):
             return None
         return node.get("data") or {}
 
-=======
->>>>>>> main
     async def scrape(self) -> List[Deal]:
         deals = []
         try:
@@ -50,7 +44,6 @@ class SteamScraper(BaseScraper):
                     from bs4 import BeautifulSoup
                     html = await resp.text()
                     soup = BeautifulSoup(html, "html.parser")
-<<<<<<< HEAD
                     kandydaci = []
                     for row in soup.select("a.search_result_row")[:20]:
                         title_el = row.select_one(".title")
@@ -88,7 +81,6 @@ class SteamScraper(BaseScraper):
                             )
                     wyniki = await asyncio.gather(*(one(t, h) for t, h in kandydaci))
                     deals = [d for d in wyniki if d]
-=======
                     for row in soup.select("a.search_result_row")[:20]:
                         title_el = row.select_one(".title")
                         if title_el:
@@ -99,12 +91,11 @@ class SteamScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
-                                price="Free",
+                                **self.listed_as_free(),
                                 category="games",
                                 source="Steam",
                                 requires_login=True,
                             ))
->>>>>>> main
         except Exception as e:
             print(f"[Steam] Error: {e}")
         return [d for d in deals if self.is_valid(d)]
