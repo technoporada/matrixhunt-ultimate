@@ -300,7 +300,10 @@ def load_seed_catalog():
         print(f"Seed catalog unreadable: {e}")
         return 0
     return save_deals_to_db([
-        SimpleNamespace(title=s["title"], url=s["url"], price=s.get("price", "Free"),
+        SimpleNamespace(title=s["title"], url=s["url"],
+                        price=s.get("price", ""),
+                        price_claim=s.get("price_claim") or s.get("price") or "Free",
+                        price_source=s.get("price_source", "listing:seed-catalog"),
                         original_price="", category=s.get("category", "games"),
                         source=s.get("source", "SeedCatalog"),
                         description=s.get("description", ""), image_url="",
@@ -310,26 +313,47 @@ def load_seed_catalog():
     ])
 
 
+def _apply_price(offer, deal):
+    """Przepisuje cene na istniejacym wierszu. True, gdy cos sie zmienilo.
+
+    Wiersze trzymaja sie po URL, wiec bez tego poprawiony scraper nigdy nie
+    naprawilby ceny zapisanej wczesniej zle. Nie pozwalamy tez, by twierdzenie
+    ze strony zrodlowej nadpisalo pomiar z API sklepu.
+    """
+    stare_api = (offer.price_source or "").startswith("api:")
+    nowe_api = (getattr(deal, "price_source", "") or "").startswith("api:")
+    if stare_api and not nowe_api:
+        return False
+    nowe = (deal.price, getattr(deal, "price_claim", None),
+            getattr(deal, "price_source", None))
+    if nowe == (offer.price, offer.price_claim, offer.price_source):
+        return False
+    offer.price, offer.price_claim, offer.price_source = nowe
+    offer.price_checked = datetime.now(timezone.utc)
+    return True
+
+
 def save_deals_to_db(deals):
     session = SessionFactory()
     new_count = 0
+    updated_count = 0
     try:
         # Only the URLs this batch actually collides with need checking.
         # Pulling every stored URL into a set loaded the whole column into
         # memory on each scrape, then copied it a second time into `seen`;
         # on a large catalog that is tens of thousands of rows for nothing.
         batch_urls = {d.url for d in deals if getattr(d, "url", None)}
-        existing_urls = set()
+        existing = {}
         if batch_urls:
-            q = session.query(Offer.url).filter(Offer.url.in_(batch_urls))
-            existing_urls = {row[0] for row in q.all()}
+            for o in session.query(Offer).filter(Offer.url.in_(batch_urls)):
+                existing[o.url] = o
         seen = set()
 
         for deal in deals:
             if not deal.url or deal.url in seen:
                 continue
             # Scrapers parse hostile third-party markup; only http(s) links
-            # may reach the DB. Anything else (javascript:, data:, …) would
+            # may reach the DB. Anything else (javascript:, data:, ...) would
             # flow into href/src attributes on the dashboard. Host check too:
             # "http://" passes a prefix test and is not a usable link.
             if not deal.url.lower().startswith(("http://", "https://")):
@@ -337,23 +361,32 @@ def save_deals_to_db(deals):
             if not urlparse(deal.url).hostname:
                 continue
             seen.add(deal.url)
-            if deal.url in existing_urls:
+
+            znany = existing.get(deal.url)
+            if znany is not None:
+                # Re-running a scrape has to refresh the price. Keys are URLs,
+                # and skipping known ones meant a scraper fixed today could
+                # never repair a price it wrote wrong yesterday. Only a deal
+                # that carries a source may overwrite, so a scraper that did
+                # not check cannot wipe a figure another source did measure.
+                if getattr(deal, "price_source", None) and _apply_price(znany, deal):
+                    updated_count += 1
                 continue
 
-              offer = Offer(
-                  title=deal.title, url=deal.url, price=deal.price,
-                  price_claim=getattr(deal, "price_claim", None),
-                  price_source=getattr(deal, "price_source", None),
-                  price_checked=(datetime.now(timezone.utc)
-                                 if getattr(deal, "price_source", None) else None),
-                  original_price=deal.original_price, category=deal.category,
-                  source=deal.source, description=deal.description,
-                  image_url=deal.image_url, requires_login=deal.requires_login,
-                  has_adfly=deal.has_adfly, has_captcha=deal.has_captcha,
-                  is_adult=deal.is_adult,
-              )
+            offer = Offer(
+                title=deal.title, url=deal.url, price=deal.price,
+                price_claim=getattr(deal, "price_claim", None),
+                price_source=getattr(deal, "price_source", None),
+                price_checked=(datetime.now(timezone.utc)
+                               if getattr(deal, "price_source", None) else None),
+                original_price=deal.original_price, category=deal.category,
+                source=deal.source, description=deal.description,
+                image_url=deal.image_url, requires_login=deal.requires_login,
+                has_adfly=deal.has_adfly, has_captcha=deal.has_captcha,
+                is_adult=deal.is_adult,
+            )
             session.add(offer)
-            existing_urls.add(deal.url)
+            existing[deal.url] = offer
             new_count += 1
 
         session.commit()
@@ -366,12 +399,25 @@ def save_deals_to_db(deals):
         raise
     finally:
         session.close()
-    return new_count
+    return new_count, updated_count
 
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
+@app.get("/offers", response_class=HTMLResponse)
+async def offers_page():
+    # Osobna trasa, bo strona glowna (sprzet + statystyki) jest zwyklym HTML-em
+    # bez Reacta, a lista ofert to komponent. Trzymanie ich razem zmuszalo
+    # kazde wejscie do sciagania i kompilowania calego JSX.
+    return FileResponse(str(FRONTEND_DIR / "offers.html"))
+
+
+@app.get("/uwagi", response_class=HTMLResponse)
+async def uwagi_page():
+    return FileResponse(str(TOOLS_DIR / "uwagi.html"))
 
 
 MAX_OFFERS_LIMIT = 1000
@@ -421,9 +467,18 @@ async def get_stats():
         total = session.query(Offer).count()
         active = session.query(Offer).filter(Offer.is_active == True).count()
         sources = session.execute(text("SELECT source, COUNT(*) FROM offers GROUP BY source")).fetchall()
+        # Ile cen jest zmierzonych, ile tylko zgloszonych, a ile wcale.
+        # Strona glowna pokazuje te trzy liczby osobno, bo "darmowe" bez
+        # informacji, kto to sprawdzil, jest tym samym klamstwem co kiedys.
+        _lub = lambda wzor: session.query(Offer).filter(Offer.price_source.like(wzor)).count()
+        measured = _lub("api:%")
+        claimed = _lub("listing:%")
         return {
             "total": total, "active": active,
             "sources": {s[0]: s[1] for s in sources},
+            "price_measured": measured,
+            "price_claimed": claimed,
+            "price_unknown": total - measured - claimed,
             "last_update": datetime.now(timezone.utc).isoformat(),
         }
     finally:
@@ -432,10 +487,11 @@ async def get_stats():
 
 @app.post("/api/scrape")
 async def trigger_scrape():
-    new = await guarded_scrape()
-    if new is None:
+    wynik = await guarded_scrape()
+    if wynik is None:
         return JSONResponse({"status": "busy", "detail": "scrape already running"}, status_code=409)
-    return {"status": "ok", "new": new}
+    new, updated = wynik
+    return {"status": "ok", "new": new, "updated": updated}
 
 
 @app.get("/api/favorites")
@@ -1140,7 +1196,7 @@ async def startup():
     try:
         if session.query(Offer).count() < 20:
             try:
-                n = load_seed_catalog()
+                n, _ = load_seed_catalog()
                 print(f"Seed catalog: {n} permanent-free titles ensured.")
             except Exception as e:
                 print(f"Seed catalog write failed: {e}")

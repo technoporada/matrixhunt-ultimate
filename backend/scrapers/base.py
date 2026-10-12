@@ -160,11 +160,13 @@ DANGEROUS_EXT = (
 class Deal:
     title: str
     url: str
-    # price is the store's own figure when we asked it. price_claim is what
-    # the source stated, price_source says which of the two it is: "api:steam"
-    # was read from the store, "listing:itch.io/games/free" was inferred from
-    # the page the item appeared on. None means nobody checked.
-    price: str = "Free"
+    # price is the store's own figure when we asked it, and only then. Empty
+    # means nobody measured it. price_claim is what the source stated,
+    # price_source says which of the two it is: "api:steam" was read from the
+    # store, "listing:itch.io/games/free" was taken from the page the item
+    # appeared on. An empty price with a claim is the honest default; a literal
+    # "Free" here was the lie the whole test file exists to catch.
+    price: str = ""
     price_claim: str = None
     price_source: str = None
     original_price: str = ""
@@ -211,9 +213,13 @@ class BaseScraper(ABC):
         To nie jest pomiar ceny i nie może być tak opisywane w interfejsie.
         Scraper, który naprawdę pyta API sklepu, nie używa tego — używa
         api:<sklep> z odpowiedzi, którą faktycznie dostał.
+
+        price zostaje puste: to pole znaczy "ile sklep powiedział", a nikt
+        sklepu nie pytał. Wpisanie tu "Free" byłoby właśnie tym kłamstwem,
+        które łapie test_P7.
         """
         return {
-            "price": "Free",
+            "price": "",
             "price_claim": "Free",
             "price_source": f"listing:{self.base_url}{listing_path}",
         }
