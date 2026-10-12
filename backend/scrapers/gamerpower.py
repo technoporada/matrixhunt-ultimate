@@ -19,7 +19,11 @@ class GamerpowerScraper(BaseScraper):
                         deals.append(Deal(
                             title=self.clean_title(title),
                             url=item.get("open_giveaway_url", ""),
+<<<<<<< HEAD
                             **self.listed_as_free("/api/giveaways"),
+=======
+                            price="Free",
+>>>>>>> main
                             original_price=item.get("worth", ""),
                             category="games",
                             source="GamerPower",

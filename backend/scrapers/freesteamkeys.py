@@ -24,7 +24,11 @@ class FreeSteamKeysScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
+<<<<<<< HEAD
                                 **self.listed_as_free(),
+=======
+                                price="Free",
+>>>>>>> main
                                 category="games",
                                 source="FreeSteamKeys",
                             ))

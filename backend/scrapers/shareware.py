@@ -27,7 +27,11 @@ class SharewareScraper(BaseScraper):
                             deals.append(Deal(
                                 title=self.clean_title(title),
                                 url=href,
+<<<<<<< HEAD
                                 **self.listed_as_free("/free"),
+=======
+                                price="Free",
+>>>>>>> main
                                 category="software",
                                 source="SharewareOnSale",
                             ))

@@ -7,10 +7,13 @@ venv/
 *.sqlite
 *.sqlite3
 backend/matrixhunt.db
+<<<<<<< HEAD
 # Transientne pliki SQLite (WAL i shared memory). *.db je łapał, te dwa nie,
 # więc trafiły do repo i pokazywały się jako usunięte po każdym otwarciu bazy.
 *.db-shm
 *.db-wal
+=======
+>>>>>>> main
 
 # Pliki powstające w trakcie działania — te same, które sync.sh wyklucza
 # z kopii lustrzanej. Bez tego wyciekłaby sesja i token.
@@ -33,6 +36,7 @@ __pycache__/
 
 # frontend/vendor/ ZOSTAJE w repo: React i Babel są tam po to, żeby aplikacja
 # działała offline. To świadoma decyzja, nie przypadek.
+<<<<<<< HEAD
 #
 # frontend/offers.js to wynik tools/build_frontend.js (JSX -> JS). Trzymamy go
 # w repo, żeby instalacja bez node działała od razu. Po zmianie offers.jsx
@@ -44,3 +48,5 @@ weryfikuj.sh
 
 # Roboczy dokument z notatkami sesji: lokalne sciezki i niedokonczone mysli.
 CEL_NAPRAWCZY.md
+=======
+>>>>>>> main
