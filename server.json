@@ -1,0 +1,9 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.twojlogin/matrixhunt-ultimate",
+  "version": "2.0.0",
+  "description": "Local web aggregator of free games with scrapers, proxy, price history and API. Offline-first, read-only data, no API keys.",
+  "license": "CC BY-NC-SA 4.0",
+  "author": "Arkadiusz Słowik",
+  "homepage": "https://github.com/twojlogin/matrixhunt-ultimate"
+}
