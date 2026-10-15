@@ -64,6 +64,9 @@ Zasady:
 - Zapisy wymagają nagłówka `X-MH-Token` z `/api/client-config` (token losowany na start).
 - CORS: `allow_origins=[]` — obcy origin nie dostaje nagłówków, odczyt blokuje przeglądarka.
 - `GET /api/offers` defaultowo pomija `is_adult`; dorosłe tylko z `?nsfw=1` (po bramce 18+ w UI). RSS nigdy nie niesie 18+.
+- Bez bliźniaków: URLe kanoniczne na wejściu (bez `utm_*`, kotwic i slasha);
+  na odczycie ta sama gra z kilku źródeł skleja się w jeden wiersz
+  (pomiar `api:*` wygrywa z opisem `listing:*`).
 
 ## 4. Źródła danych
 
@@ -126,7 +129,7 @@ bez CDN). Przycisk pauzy to pauza — Ruffle 0.7 nie daje API do głośności.
 ## 8. Testy
 
 ```bash
-.venv/bin/python -m pytest tests/ -q        # 2026-10-15: 88 passed
+.venv/bin/python -m pytest tests/ -q        # 2026-10-15: 97 passed
 node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez przeglądarki
 ./weryfikuj.sh                               # pełna weryfikacja z siecią (uwaga: start serwera = scrape, >120 s)
 ./sync.sh <katalog-docelowy>                # lustro do drugiej kopii (bez twardych ścieżek)
@@ -137,7 +140,7 @@ node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez
 |---|---|
 | `tests/test_ceny.py` | niezmienniki cen na prawdziwych plikach i bazie (żadnego `Free` bez `api:*`) |
 | `tests/test_niezmienniki.py` | filtry, baza, serwer, F2P/DLC |
-| `tests/test_niezalezne.py` | zachowanie na spreparowanych danych: logika cen, SSRF, migracja, martwe linki, offline, punktacja JS, bramka 18+, parser Łowców, render frontendów |
+| `tests/test_niezalezne.py` | zachowanie na spreparowanych danych: logika cen, SSRF, migracja, martwe linki, offline, punktacja JS, bramka 18+, parser Łowców, render frontendów, sklejanie bliźniaków, jeden `site.js`, kanon 10 linków + filtr źródeł, toggle PL/EN |
 
 Filozofia: test ma dać się złamać psując kod. Po tym, jak 52 testy przechodziły
 przy żywym błędzie (`Deal.price` domyślnie `"Free"`), dopisaliśmy testy, które go łapią.

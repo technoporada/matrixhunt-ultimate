@@ -209,40 +209,25 @@
         </div>
 
         <footer>
-            <a href="/" data-i18n="nav.dashboard">DASHBOARD</a>
-            <a href="/retro" data-i18n="nav.retro">RETRO</a>
-            <a href="/pad" data-i18n="nav.pad">PAD TEST</a>
-            <a href="/bookmarks" data-i18n="nav.bookmarks">BOOKMARKS</a>
+            <a href="/">HOME</a>
+            <a href="/offers">OFERTY</a>
+            <a href="/view">VIEW</a>
+            <a href="/db">DB</a>
+            <a href="/retro">RETRO</a>
+            <a href="/pad">PAD</a>
+            <a href="/wiki">WIKI</a>
+            <a href="/bookmarks">BOOKMARKS</a>
+            <a href="/flash">FLASH</a>
+            <a href="/uwagi">UWAGI</a>
         </footer>
     </div>
 
     <a href="/" class="back-link">&lt; <span data-i18n="nav.dashboard">DASHBOARD</span></a>
 
+    <script src="/tools/site.js"></script>
     <script>
-
-        const canvas = document.getElementById('matrix-bg');
-        const ctx = canvas.getContext('2d');
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resize();
-        window.addEventListener('resize', resize);
-        const chars = '\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE0123456789ABCDEF';
-        const fs = 14;
-        let cols = Math.floor(canvas.width / fs);
-        let drops = new Array(cols).fill(1);
-        function drawMatrix() {
-            if (window.mhTheme && !window.mhTheme.isMatrix()) return;
-            ctx.fillStyle = 'rgba(0,0,0,0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#0f0';
-            ctx.font = fs + 'px monospace';
-            for (let i = 0; i < drops.length; i++) {
-                ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * fs, drops[i] * fs);
-                if (drops[i] * fs > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-        setInterval(drawMatrix, 50);
-
+        // Jeden deszcz z tools/site.js (było wklejone w 6 plików).
+        window.MH.matrixRain();
 
         console.log('Wiki loaded');
 

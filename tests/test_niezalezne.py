@@ -487,6 +487,163 @@ def test_Q15_ulotne_doklejaja_sie_do_sesji_bez_dysku(tmp_path, monkeypatch):
     assert not (tmp_path / "cookies").exists()
 
 
+# ============================================================ Q16: bliźniaki się sklejają
+def test_Q16_url_kanoniczny_deduplikuje_warianty(baza):
+    assert baza.save_deals_to_db([
+        _deal("https://sklep.example/gra/?utm_source=x"),
+        _deal("https://sklep.example/gra/"),
+        _deal("https://SKLEP.example/gra"),
+    ]) == (1, 0)
+
+
+def test_Q16_url_kanoniczny_ucina_sledzenie(baza):
+    import main
+    assert main._canonical_url("https://sklep.example/gra/?utm_source=x&b=2#frag") == \
+        "https://sklep.example/gra?b=2"
+
+
+def _blizniaki(monkey):
+    monkey.save_deals_to_db([
+        _deal("https://store.example/epic-bad-cheese", title="Bad Cheese",
+              price="0", price_claim="0", price_source="api:epic", source="Epic"),
+        _deal("https://lowcy.example/art", title="Odbierz Bad Cheese za darmo na PC",
+              source="LowcyGier"),
+        _deal("https://agg.example/giveaway", title="Bad Cheese (Epic Games) Free Giveaway",
+              source="GamerPower"),
+        _deal("https://inny.example/hex", title="Hex Reverse", source="Steam"),
+    ])
+
+
+def test_Q16_merge_na_zywym_zapytaniu(baza):
+    import asyncio
+    _blizniaki(baza)
+    res = asyncio.run(baza.get_offers(limit=100, nsfw=1))
+    tytuly = [o["title"] for o in res]
+    assert tytuly.count("Bad Cheese") == 1
+    assert "Hex Reverse" in tytuly
+    assert len(res) == 2
+    cheese = next(o for o in res if o["title"] == "Bad Cheese")
+    assert cheese["price_source"] == "api:epic"
+
+
+def test_Q16_krotki_tytul_nie_pozyera_krewnych(baza):
+    import asyncio
+    baza.save_deals_to_db([
+        _deal("https://s.example/doom", title="Doom",
+              price="0", price_claim="0", price_source="api:steam", source="Steam"),
+        _deal("https://a.example/doom2016", title="Doom 2016 od dziś z modem",
+              source="Reddit"),
+    ])
+    res = asyncio.run(baza.get_offers(limit=100, nsfw=1))
+    assert len(res) == 2
+
+
+# ============================================================ Q17: współdzielony frontend (koniec wklejek)
+_WSPOLNE = [ROOT / "frontend" / "index.html",
+            ROOT / "frontend" / "offers.jsx",
+            ROOT / "frontend" / "offers.html",
+            ROOT / "tools" / "retro.html",
+            ROOT / "tools" / "bookmarks.html",
+            ROOT / "tools" / "wiki.html"]
+
+
+def test_Q17_sources_i_deszzz_definiowane_raz():
+    """SOURCES i themeLabel żyją w tools/site.js. Kopie w stronach wracały
+    przy każdej zmianie (raz dopisano LowcyGier tylko w jednym miejscu)."""
+    defs = []
+    for p in _WSPOLNE + [ROOT / "tools" / "site.js"]:
+        t = p.read_text(encoding="utf-8")
+        if re.search(r"(?:const|var) SOURCES\s*=\s*\[", t):
+            defs.append(f"{p.name}: SOURCES")
+        if re.search(r"function themeLabel", t):
+            defs.append(f"{p.name}: themeLabel")
+    assert defs == ["site.js: SOURCES", "site.js: themeLabel"], defs
+
+
+def test_Q17_deszcz_tylko_w_site_js():
+    """Lokalny drawMatrix/setInterval tylko we flashu (osobna, zamierzona
+    wariacja). Reszta woła window.MH.matrixRain()."""
+    zle = []
+    for p in _WSPOLNE:
+        t = p.read_text(encoding="utf-8")
+        if "function drawMatrix" in t or "setInterval(drawMatrix" in t:
+            zle.append(p.name)
+    assert not zle, zle
+    for p in _WSPOLNE:
+        if p.name == "offers.html":
+            continue  # powłoka: deszcz leci z offers.js
+        t = p.read_text(encoding="utf-8")
+        assert "window.MH.matrixRain()" in t, f"{p.name} nie woła site.js"
+    for p in _WSPOLNE:
+        if p.suffix == ".jsx":
+            continue
+        t = p.read_text(encoding="utf-8")
+        assert "/tools/site.js" in t, f"{p.name} nie ładuje site.js"
+
+
+# ============================================================ Q18: spójna nawigacja i filtr źródeł
+_KANON = ["/", "/offers", "/view", "/db", "/retro", "/pad",
+          "/wiki", "/bookmarks", "/flash", "/uwagi"]
+_STRONY = [ROOT / "frontend" / "index.html",
+           ROOT / "frontend" / "offers.jsx",
+           ROOT / "frontend" / "pad_test.html",
+           ROOT / "tools" / "retro.html",
+           ROOT / "tools" / "flash_player.html",
+           ROOT / "tools" / "viewer.html",
+           ROOT / "tools" / "db.html",
+           ROOT / "tools" / "uwagi.html",
+           ROOT / "tools" / "bookmarks.html",
+           ROOT / "tools" / "wiki.html"]
+
+
+def test_Q18_kazda_strona_ma_kanoniczne_10_linkow():
+    """Stopki i navy dryfowały: 4-5 linków, 'PAD' obok 'PAD TEST',
+    'HOME' obok 'DASHBOARD' i 'START', martwy /tools/flash_player.html.
+    Kanon: te same 10 hrefów wszędzie."""
+    for p in _STRONY:
+        t = p.read_text(encoding="utf-8")
+        brak = [h for h in _KANON if f'href="{h}"' not in t]
+        assert not brak, f"{p.name}: brak {brak}"
+
+
+def _aktywne_wyswietlane_nazwy():
+    tekst = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
+    importmap = dict(re.findall(r"from scrapers\.(\w+) import (\w+)", tekst))
+    m = re.search(r"SCRAPER_CLASSES = \[(.*?)\]", tekst, re.S)
+    aktywne = set(re.findall(r"(\w+)", m.group(1)))
+    nazwy = set()
+    for mod, cls in importmap.items():
+        if cls in aktywne:
+            f = ROOT / "backend" / "scrapers" / f"{mod}.py"
+            n = re.search(r"super\(\).__init__\(\"([^\"]+)\"", f.read_text(encoding="utf-8"))
+            nazwy.add(n.group(1))
+    return nazwy
+
+
+def test_Q18_filtr_zrodel_to_dokladnie_aktywne_scrapery():
+    """'Epic' w filtrze przy 'Epic Games' w bazie dawał pustą listę,
+    a zaparkowane (Itch.io i spółka) i DelistedSteam udawały wybór.
+    Równość zbiorów: ani martwych, ani brakujących."""
+    t = (ROOT / "tools" / "site.js").read_text(encoding="utf-8")
+    m = re.search(r"SOURCES = \[(.*?)\]", t, re.S)
+    opcje = set(re.findall(r"'([^']+)'", m.group(1))) - {"ALL"}
+    assert opcje == _aktywne_wyswietlane_nazwy(), (
+        f"filtr={sorted(opcje)} vs scrapery={sorted(_aktywne_wyswietlane_nazwy())}")
+
+
+# ============================================================ Q19: tłumaczenia PL/EN
+def test_Q19_lang_toggle_placeholder_i_pamiec():
+    """Przełącznik języka: start z przeglądarki, flip PL<->EN (teksty
+    i placeholdery), nieznany klucz przepuszczany, element z dziećmi
+    nietknięty, śmieć w storage nie wywala (fallback en)."""
+    if shutil.which("node") is None:
+        pytest.skip("brak node")
+    r = subprocess.run(["node", "tools/i18n_check.js"], cwd=str(ROOT),
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"i18n FAIL:\n{r.stdout}\n{r.stderr}"
+    assert "I18N-OK" in r.stdout
+
+
 # ============================================================ Q10: punktacja JS (regresje z komentarzy w kodzie)
 _NODE_PROG = """
 const fs = require("fs");

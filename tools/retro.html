@@ -613,11 +613,16 @@
         </div>
 
         <footer>
-            <a href="/" data-i18n="nav.dashboard">DASHBOARD</a>
-            <a href="/pad" data-i18n="nav.pad">PAD TEST</a>
-            <a href="/wiki" data-i18n="nav.wiki">WIKI</a>
-            <a href="/bookmarks" data-i18n="nav.bookmarks">BOOKMARKS</a>
-            <a href="/flash" data-i18n="nav.flash">FLASH PLAYER</a>
+            <a href="/">HOME</a>
+            <a href="/offers">OFERTY</a>
+            <a href="/view">VIEW</a>
+            <a href="/db">DB</a>
+            <a href="/retro">RETRO</a>
+            <a href="/pad">PAD</a>
+            <a href="/wiki">WIKI</a>
+            <a href="/bookmarks">BOOKMARKS</a>
+            <a href="/flash">FLASH</a>
+            <a href="/uwagi">UWAGI</a>
             <div style="margin-top:10px; font-size:0.7em; opacity:0.4;">
                 MATRIXHUNT ULTIMATE v2.0 // License: CC BY-NC-SA 4.0 // Author: Arkadiusz Slowik<br>
                 This software is FREE. If someone is selling it, they are scammers.
@@ -627,30 +632,10 @@
 
     <script src="/tools/emulator-db.js"></script>
     <script src="/tools/hardware-detect.js"></script>
+    <script src="/tools/site.js"></script>
     <script>
-        // Matrix rain background
-        const canvas = document.getElementById('matrix-bg');
-        const ctx = canvas.getContext('2d');
-        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-        resize();
-        window.addEventListener('resize', resize);
-        const chars = '\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE0123456789ABCDEF';
-        const fs = 14;
-        let cols = Math.floor(canvas.width / fs);
-        let drops = new Array(cols).fill(1);
-        function drawMatrix() {
-            if (window.mhTheme && !window.mhTheme.isMatrix()) return;
-            ctx.fillStyle = 'rgba(0,0,0,0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#0f0';
-            ctx.font = fs + 'px monospace';
-            for (let i = 0; i < drops.length; i++) {
-                ctx.fillText(chars[Math.floor(Math.random() * chars.length)], i * fs, drops[i] * fs);
-                if (drops[i] * fs > canvas.height && Math.random() > 0.975) drops[i] = 0;
-                drops[i]++;
-            }
-        }
-        setInterval(drawMatrix, 50);
+        // Jeden deszcz z tools/site.js (było wklejone w 6 plików).
+        window.MH.matrixRain();
 
         // Tab switching
         function showTab(name) {
@@ -722,7 +707,17 @@
 
         async function runCYIEScan() {
             const btn = document.getElementById('btn-scan');
-            btn.textContent = 'SCANNING...';
+            const T = function (k, fb) {
+                try {
+                    if (window.mhLang && typeof window.mhLang.t === 'function') {
+                        var v = window.mhLang.t(k);
+                        if (v && v !== k) return v;
+                    }
+                } catch (e) {}
+                return fb;
+            };
+            const pl = (document.documentElement.getAttribute('data-lang') === 'pl');
+            btn.textContent = T('retro.scanning', pl ? 'SKANOWANIE...' : 'SCANNING...');
             btn.disabled = true;
 
             try {
@@ -735,10 +730,10 @@
                 renderRecommendedProfile(cyieHardware, 'cyie-recommended');
                 renderPresetProfiles(cyieHardware, 'cyie-presets');
 
-                btn.textContent = 'RESCAN';
+                btn.textContent = T('retro.rescan', pl ? 'SKANUJ PONOWNIE' : 'RESCAN');
                 btn.disabled = false;
             } catch (err) {
-                btn.textContent = 'SCAN FAILED - RETRY';
+                btn.textContent = pl ? 'SKAN NIEUDANY - SPRÓBUJ' : 'SCAN FAILED - RETRY';
                 btn.disabled = false;
                 console.error('CYIE scan error:', err);
             }

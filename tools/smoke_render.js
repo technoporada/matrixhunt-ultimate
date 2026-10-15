@@ -17,7 +17,9 @@ const __el = () => ({ style: {}, appendChild(){}, addEventListener(){},
   querySelector: () => __el(), textContent: "", value: "", className: "" });
 global.window = { addEventListener(){}, removeEventListener(){},
   innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
-  mhTheme: { get: () => "matrix" }, mhLang: { get: () => "en", t: (k) => k } };
+  mhTheme: { get: () => "matrix" }, mhLang: { get: () => "en", t: (k) => k },
+  MH: { SOURCES: ["ALL", "Reddit", "LowcyGier"],
+        themeLabel: (t) => t, matrixRain: () => {} } };
 global.document = { getElementById: () => __el(), createElement: () => __el(),
   addEventListener(){}, removeEventListener(){},
   documentElement: { setAttribute(){} } };

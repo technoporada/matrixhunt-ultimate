@@ -356,6 +356,91 @@ def _is_unsafe_file_url(url):
     return path.endswith(_UNSAFE_FILE_EXT)
 
 
+# Śmieciowe parametry, które mnożą "różne" URLe do tej samej strony.
+_TRACKING_PARAMS = ("utm_source", "utm_medium", "utm_campaign", "utm_term",
+                    "utm_content", "fbclid", "gclid", "msclkid")
+
+
+def _canonical_url(url):
+    """Jedna postać URL-a do porównań i zapisu: mały host, bez zbędnego
+    slasha na końcu, bez parametrów śledzących, bez kotwicy. Bez tego ten sam
+    giveaway spod .../gra/?utm_source=x i .../gra/ lądował w bazie dwa razy
+    i dashboard pokazywał bliźniaki jeden pod drugim."""
+    try:
+        from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        if not host:
+            return url
+        netloc = host
+        if parts.port and parts.port not in (80, 443):
+            netloc += f":{parts.port}"
+        path = parts.path or ""
+        if len(path) > 1 and path.endswith("/"):
+            path = path[:-1]
+        q = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if k.lower() not in _TRACKING_PARAMS]
+        q.sort()
+        return urlunsplit((parts.scheme.lower(), netloc, path,
+                           urlencode(q), ""))
+    except Exception:
+        return url
+
+
+def _norm_title(title):
+    """Tytuł do porównań: małe litery, bez interpunkcji, pojedyncze spacje."""
+    import re as _re
+    t = (_re.sub(r"[^\w\s]", "", (title or "").lower(), flags=_re.UNICODE))
+    return _re.sub(r"\s+", " ", t).strip()
+
+
+def _merge_twins(offers):
+    """Skleja bliźniaki między źródłami: ta sama gra z Epic (api:) i opisana
+    w artykule Łowców / GamerPower (listing:) to jeden wiersz na stronie.
+    Zostaje pomiar ze sklepu albo nowszy wpis; artykuły znikają z listy,
+    ale ich URLe dalej żyją w bazie (nic nie kasujemy).
+
+    Ostrożnie z podciągami: krótszy tytuł musi mieć min. 8 znaków i pasować
+    na granicach słów, żeby "Doom" nie zjadł "Doom 2016".
+    """
+    import re as _re
+    if len(offers) < 2:
+        return offers
+    norm = [_norm_title(o.title) for o in offers]
+    keep = [True] * len(offers)
+
+    def _rank(i):
+        o = offers[i]
+        api = 1 if (o.price_source or "").startswith("api:") else 0
+        ts = o.created_at.isoformat() if o.created_at else ""
+        return (api, ts)
+
+    # 1) dokładne duplikaty znormalizowanego tytułu: jeden zostaje.
+    seen_title = {}
+    for i, n in enumerate(norm):
+        if not n:
+            continue
+        if n in seen_title:
+            j = seen_title[n]
+            kill = i if _rank(i) < _rank(j) else j
+            keep[kill] = False
+            seen_title[n] = j if kill == i else i
+        else:
+            seen_title[n] = i
+    # 2) artykuł (listing) opisujący grę ze sklepu (api:) znika z listy.
+    prim = [i for i in range(len(offers))
+            if keep[i] and (offers[i].price_source or "").startswith("api:")
+            and len(norm[i]) >= 8]
+    for i in range(len(offers)):
+        if not keep[i] or (offers[i].price_source or "").startswith("api:"):
+            continue
+        for j in prim:
+            if _re.search(r"(?<!\w)" + _re.escape(norm[j]) + r"(?!\w)", norm[i]):
+                keep[i] = False
+                break
+    return [o for k, o in enumerate(offers) if keep[k]]
+
+
 def save_deals_to_db(deals):
     session = SessionFactory()
     new_count = 0
@@ -365,15 +450,18 @@ def save_deals_to_db(deals):
         # Pulling every stored URL into a set loaded the whole column into
         # memory on each scrape, then copied it a second time into `seen`;
         # on a large catalog that is tens of thousands of rows for nothing.
-        batch_urls = {d.url for d in deals if getattr(d, "url", None)}
+        batch_urls = set()
+        for d in deals:
+            if getattr(d, "url", None):
+                batch_urls.add(_canonical_url(d.url))
         existing = {}
         if batch_urls:
             for o in session.query(Offer).filter(Offer.url.in_(batch_urls)):
-                existing[o.url] = o
+                existing[_canonical_url(o.url)] = o
         seen = set()
 
         for deal in deals:
-            if not deal.url or deal.url in seen:
+            if not deal.url or _canonical_url(deal.url) in seen:
                 continue
             # Scrapers parse hostile third-party markup; only http(s) links
             # may reach the DB. Anything else (javascript:, data:, ...) would
@@ -385,9 +473,10 @@ def save_deals_to_db(deals):
                 continue
             if _is_unsafe_file_url(deal.url):
                 continue
-            seen.add(deal.url)
+            canon = _canonical_url(deal.url)
+            seen.add(canon)
 
-            znany = existing.get(deal.url)
+            znany = existing.get(canon)
             if znany is not None:
                 # Re-running a scrape has to refresh the price. Keys are URLs,
                 # and skipping known ones meant a scraper fixed today could
@@ -408,7 +497,7 @@ def save_deals_to_db(deals):
                 continue
 
             offer = Offer(
-                title=deal.title, url=deal.url, price=deal.price,
+                title=deal.title, url=canon, price=deal.price,
                 price_claim=getattr(deal, "price_claim", None),
                 price_source=getattr(deal, "price_source", None),
                 price_checked=(datetime.now(timezone.utc)
@@ -420,7 +509,7 @@ def save_deals_to_db(deals):
                 is_adult=deal.is_adult,
             )
             session.add(offer)
-            existing[deal.url] = offer
+            existing[canon] = offer
             new_count += 1
 
         session.commit()
@@ -481,7 +570,10 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100,
                               .replace("%", r"\%")
                               .replace("_", r"\_"))
             query = query.filter(Offer.title.ilike(f"%{pattern}%"))
-        offers = query.order_by(Offer.created_at.desc()).limit(limit).all()
+        # LIMIT w SQL przed sklejaniem obcinałby losowy podzbiór bliźniaków.
+        # Przy setkach wierszy taniej dobrać w pamięci i przyciąć po mergu.
+        offers = _merge_twins(
+            query.order_by(Offer.created_at.desc()).all())[:limit]
         return [
             {
                   "id": o.id, "title": o.title, "url": o.url, "price": o.price,

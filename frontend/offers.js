@@ -13,42 +13,10 @@ const NAV_L = {
   padding: '6px 12px'
 };
 
-// Matrix Rain
-const matrixCanvas = document.getElementById('matrix-bg');
-const ctx = matrixCanvas.getContext('2d');
-function resizeCanvas() {
-  matrixCanvas.width = window.innerWidth;
-  matrixCanvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
-const fontSize = 14;
-let columns = Math.floor(matrixCanvas.width / fontSize);
-let drops = new Array(columns).fill(1);
-function drawMatrix() {
-  if (window.mhTheme && !window.mhTheme.isMatrix()) return;
-  ctx.fillStyle = 'rgba(0,0,0,0.05)';
-  ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
-  ctx.fillStyle = '#0f0';
-  ctx.font = fontSize + 'px monospace';
-  for (let i = 0; i < drops.length; i++) {
-    const text = chars[Math.floor(Math.random() * chars.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-    if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
-    }
-    drops[i]++;
-  }
-}
-setInterval(drawMatrix, 50);
-const SOURCES = ['ALL', 'GamerPower', 'Epic', 'Steam', 'GOG', 'Itch.io', 'IndieGala', 'FreeToGame', 'FreeSteamKeys', 'Nebula', 'SharewareOnSale', 'Humble', 'GameJolt', 'GiveawayRadar', 'DelistedSteam', 'Reddit', 'LowcyGier'];
+// Jeden deszcz z tools/site.js (było wklejone w 6 plików).
+window.MH.matrixRain();
 
-/* THEME_LABELS and DASH_STR were verbatim copies of the dictionaries in
- * tools/theme.js and tools/lang.js. That made three sources of truth for
- * the same strings and left all 17 dash.* keys defined in lang.js with
- * zero readers. The helpers below read the shared modules instead, so
- * adding a key once is enough. */
+/* T_ czyta tools/lang.js, żeby słownik żył w jednym miejscu. */
 function T_(key, fallback) {
   try {
     if (window.mhLang && typeof window.mhLang.t === 'function') {
@@ -57,14 +25,6 @@ function T_(key, fallback) {
     }
   } catch (e) {/* lang.js not loaded yet */}
   return fallback;
-}
-function themeLabel(theme) {
-  var labels = {
-    matrix: '◐ MATRIX',
-    night: '● NIGHT',
-    day: '○ DAY'
-  };
-  return labels[theme] || labels.matrix;
 }
 function App() {
   const [offers, setOffers] = useState([]);
@@ -472,7 +432,7 @@ function App() {
   }, /*#__PURE__*/React.createElement("select", {
     value: sourceFilter,
     onChange: e => setSourceFilter(e.target.value)
-  }, SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
+  }, window.MH.SOURCES.map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
   }, s === 'ALL' ? T.all : s))), /*#__PURE__*/React.createElement("input", {
@@ -517,7 +477,7 @@ function App() {
   }, lang === 'pl' ? 'WIDOK' : 'VIEW'), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.mhTheme && window.mhTheme.cycle(),
     title: "Cycle theme: matrix / night / day"
-  }, themeLabel(theme)), /*#__PURE__*/React.createElement("button", {
+  }, window.MH.themeLabel(theme)), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.mhLang && window.mhLang.toggle(),
     title: "PL/EN"
   }, lang === 'pl' ? 'PL ●' : 'EN ○'), /*#__PURE__*/React.createElement("button", {
@@ -749,22 +709,33 @@ function App() {
     }, isFav ? '★' : '☆')));
   })), /*#__PURE__*/React.createElement("div", {
     className: "shortcuts-hint"
-  }, T.shortcuts), /*#__PURE__*/React.createElement("footer", null, /*#__PURE__*/React.createElement("div", {
+  }, T.shortcuts), /*#__PURE__*/React.createElement("footer", null, /*#__PURE__*/React.createElement("a", {
+    href: "/"
+  }, "HOME"), /*#__PURE__*/React.createElement("a", {
+    href: "/offers"
+  }, "OFERTY"), /*#__PURE__*/React.createElement("a", {
+    href: "/view"
+  }, "VIEW"), /*#__PURE__*/React.createElement("a", {
+    href: "/db"
+  }, "DB"), /*#__PURE__*/React.createElement("a", {
+    href: "/retro"
+  }, "RETRO"), /*#__PURE__*/React.createElement("a", {
+    href: "/pad"
+  }, "PAD"), /*#__PURE__*/React.createElement("a", {
+    href: "/wiki"
+  }, "WIKI"), /*#__PURE__*/React.createElement("a", {
+    href: "/bookmarks"
+  }, "BOOKMARKS"), /*#__PURE__*/React.createElement("a", {
+    href: "/flash"
+  }, "FLASH"), /*#__PURE__*/React.createElement("a", {
+    href: "/uwagi"
+  }, "UWAGI"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: '0.7em',
-      opacity: 0.4
+      opacity: 0.4,
+      marginTop: '10px'
     }
-  }, "MATRIXHUNT ULTIMATE v2.0 // License: CC BY-NC-SA 4.0 // Author: Arkadiusz Slowik", /*#__PURE__*/React.createElement("br", null), "This software is FREE. If someone is selling it, they are scammers."), /*#__PURE__*/React.createElement("div", {
-    style: {
-      marginTop: '8px'
-    }
-  }, /*#__PURE__*/React.createElement("a", {
-    href: "/uwagi",
-    style: {
-      fontSize: '0.66em',
-      opacity: 0.4
-    }
-  }, "uwagi"))), toast && /*#__PURE__*/React.createElement("div", {
+  }, "MATRIXHUNT ULTIMATE v2.0 // License: CC BY-NC-SA 4.0 // Author: Arkadiusz Slowik", /*#__PURE__*/React.createElement("br", null), "This software is FREE. If someone is selling it, they are scammers.")), toast && /*#__PURE__*/React.createElement("div", {
     className: "toast"
   }, toast), showAgeGate && /*#__PURE__*/React.createElement("div", {
     style: {
