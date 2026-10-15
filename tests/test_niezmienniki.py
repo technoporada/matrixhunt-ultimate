@@ -37,13 +37,31 @@ DB = ROOT / "backend" / "matrixhunt.db"
 LISTS = ROOT / "backend" / "filterlists.py"
 
 
+def _run_dir():
+    import os
+    import tempfile
+    env = os.environ.get("MH_RUN_DIR", "").strip()
+    if env:
+        return pathlib.Path(env)
+    user = os.environ.get("USER", "u") or "u"
+    return pathlib.Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / f"matrixhunt-{user}"
+
+
 def _port():
-    """Port z logu uruchomionego serwera, inaczej z aktywnych listenerow."""
-    log = pathlib.Path("/tmp/opencode/port.txt")
-    if log.exists():
-        txt = log.read_text().strip()
-        if txt.isdigit():
-            return int(txt)
+    """Port z env / pliku startowego, inaczej z aktywnych listenerow."""
+    env = os.environ.get("MH_PORT", "").strip()
+    if env.isdigit():
+        return int(env)
+    for log in (_run_dir() / "port.txt",
+                ROOT / ".tmp" / "port.txt",
+                pathlib.Path("/tmp/opencode/port.txt")):  # legacy
+        try:
+            if log.exists():
+                txt = log.read_text().strip()
+                if txt.isdigit():
+                    return int(txt)
+        except OSError:
+            pass
     import socket
     for p in range(8000, 8020):
         s = socket.socket()

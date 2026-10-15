@@ -24,18 +24,42 @@ ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
 
 
+def _run_dir():
+    """Katalog na log/port — przenośny, bez /home/... na sztywno."""
+    import os
+    import tempfile
+    env = os.environ.get("MH_RUN_DIR", "").strip()
+    if env:
+        return Path(env)
+    user = os.environ.get("USER", "u") or "u"
+    return Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / f"matrixhunt-{user}"
+
+
 def _port():
-    """Port z logu startu, fallback 8000."""
-    # port.txt ma pierwszenstwo: 8000 bywa zajete przez inna aplikacje,
-    # a wtedy wynik wygladlby jak awaria MatrixHunt
-    pt = Path("/tmp/opencode/port.txt")
-    if pt.exists() and pt.read_text().strip().isdigit():
-        return int(pt.read_text().strip())
-    log = Path("/tmp/opencode/vp.log")
-    if log.exists():
-        m = re.search(r"127\.0\.0\.1:(\d+)", log.read_text(errors="replace"))
-        if m:
-            return int(m.group(1))
+    """Port z env, potem z pliku, potem z logu startu, fallback 8000."""
+    import os
+    env = os.environ.get("MH_PORT", "").strip()
+    if env.isdigit():
+        return int(env)
+    run = _run_dir()
+    for pt in (run / "port.txt",
+               ROOT / ".tmp" / "port.txt",
+               Path("/tmp/opencode/port.txt")):  # legacy, wsteczna zgodność
+        try:
+            if pt.exists() and pt.read_text().strip().isdigit():
+                return int(pt.read_text().strip())
+        except OSError:
+            pass
+    for log in (run / "vp.log",
+                ROOT / ".tmp" / "vp.log",
+                Path("/tmp/opencode/vp.log")):  # legacy
+        try:
+            if log.exists():
+                m = re.search(r"127\.0\.0\.1:(\d+)", log.read_text(errors="replace"))
+                if m:
+                    return int(m.group(1))
+        except OSError:
+            pass
     return 8000
 
 

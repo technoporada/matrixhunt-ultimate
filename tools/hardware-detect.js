@@ -60,11 +60,20 @@ class HardwareDetector {
 
         const supportsWebGL2 = !!canvas.getContext('webgl2');
 
+        // Uczciwość wyniku: niektóre przeglądarki maskują renderer
+        // (resistFingerprinting -> "WebGL", pusty vendor) albo podają ANGLE
+        // ("ANGLE (NVIDIA, ... Direct3D11)"). ANGLE punktuje normalnie
+        // (patterny i tak trafiają), ale generyczny renderer to zgadywanie.
+        const rLow = String(renderer || '').toLowerCase().trim();
+        const masked = !renderer || rLow === 'unknown' || rLow === 'webgl'
+            || (!debugInfo && rLow === 'unknown');
         return {
             vendor: vendor,
             renderer: renderer,
             score: getGPUScore(renderer),
-            supportsWebGL2: supportsWebGL2
+            supportsWebGL2: supportsWebGL2,
+            estimated: masked,
+            viaANGLE: rLow.includes('angle'),
         };
     }
 
@@ -97,7 +106,12 @@ class HardwareDetector {
         else if (gb >= 2) tier = 'weak';
         else tier = 'very-weak';
 
-        return { gb: gb, tier: tier, available: gb > 0 };
+        // Chromium przycina deviceMemory do 8 GB, Firefox/Safari zwracają 0.
+        // 8 GB może więc znaczyć "8 albo więcej", a 0 — "przeglądarka ukrywa".
+        return {
+            gb: gb, tier: gb > 0 ? tier : 'unknown', available: gb > 0,
+            capped: gb === 8, hidden: gb === 0,
+        };
     }
 
     /**
@@ -381,7 +395,22 @@ function renderHardwareSummary(hw, containerId) {
     const gpuColor = hw.gpu.score >= 60 ? 'var(--ok)' : hw.gpu.score >= 30 ? 'var(--mid)' : 'var(--bad)';
     const cpuColor = hw.cpu.cores >= 6 ? 'var(--ok)' : hw.cpu.cores >= 4 ? 'var(--mid)' : 'var(--bad)';
     const ramColor = hw.ram.gb >= 8 ? 'var(--ok)' : hw.ram.gb >= 4 ? 'var(--mid)' : 'var(--bad)';
-    const vulkanColor = hw.vulkan.supported ? 'var(--ok)' : 'var(--bad)';
+    const vulkanColor = hw.vulkan.supported ? 'var(--ok)' : (hw.vulkan.unknown ? 'var(--warn)' : 'var(--bad)');
+    const vulkanText = hw.vulkan.supported ? 'YES' : (hw.vulkan.unknown ? 'UNKNOWN' : 'NO');
+
+    // RAM: 0 = przeglądarka ukrywa (Firefox/Safari), 8 = możliwy cap Chromium.
+    // Pokazujemy to wprost zamiast udawać pewny odczyt.
+    let ramHTML;
+    if (hw.ram.hidden) {
+        ramHTML = '<span style="color:var(--warn);">Unknown (przeglądarka ukrywa; do punktacji przyjęto neutralne +14)</span>';
+    } else if (hw.ram.capped) {
+        ramHTML = '<span style="color:' + ramColor + ';">8 GB (limit Chromium — możesz mieć więcej)</span>';
+    } else {
+        ramHTML = '<span style="color:' + ramColor + ';">' + hw.ram.gb + ' GB</span>';
+    }
+    const gpuNote = hw.gpu.estimated
+        ? ' <span style="opacity:0.5;">[szacowane — renderer zamaskowany]</span>'
+        : (hw.gpu.viaANGLE ? ' <span style="opacity:0.5;">[via ANGLE]</span>' : '');
 
     let controllerHTML = '<span style="color:var(--bad);">None detected</span>';
     if (hw.controller.connected) {
@@ -391,12 +420,12 @@ function renderHardwareSummary(hw, containerId) {
 
     el.innerHTML =
         '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85em;">' +
-            '<div><span style="opacity:0.5;">GPU:</span> <span style="color:' + gpuColor + ';">' + hw.gpu.renderer + '</span> <span style="opacity:0.5;">[score: ' + hw.gpu.score + ']</span></div>' +
-            '<div><span style="opacity:0.5;">CPU:</span> <span style="color:' + cpuColor + ';">' + hw.cpu.cores + ' cores</span> <span style="opacity:0.5;">[' + hw.cpu.tier + ']</span></div>' +
-            '<div><span style="opacity:0.5;">RAM:</span> <span style="color:' + ramColor + ';">' + (hw.ram.gb > 0 ? hw.ram.gb + ' GB' : 'Unknown') + '</span></div>' +
-            '<div><span style="opacity:0.5;">Display:</span> <span style="color:var(--green);">' + hw.display.width + 'x' + hw.display.height + ' @ ' + hw.display.pixelRatio + 'x DPR</span> <span style="opacity:0.5;">[' + (hw.display.estimatedHz ? hw.display.estimatedHz + ' Hz' : 'Hz unknown') + ']</span></div>' +
+            '<div><span style="opacity:0.5;">GPU:</span> <span style="color:' + gpuColor + ';">' + hw.gpu.renderer + '</span> <span style="opacity:0.5;">[score: ' + hw.gpu.score + ']</span>' + gpuNote + '</div>' +
+            '<div><span style="opacity:0.5;">CPU:</span> <span style="color:' + cpuColor + ';">' + (hw.cpu.cores > 0 ? hw.cpu.cores + ' cores' : 'Unknown') + '</span> <span style="opacity:0.5;">[' + hw.cpu.tier + ']</span></div>' +
+            '<div><span style="opacity:0.5;">RAM:</span> ' + ramHTML + '</div>' +
+            '<div><span style="opacity:0.5;">Display:</span> <span style="color:var(--green);">' + hw.display.width + 'x' + hw.display.height + ' @ ' + hw.display.pixelRatio + 'x DPR</span> <span style="opacity:0.5;">[' + (hw.display.estimatedHz ? hw.display.estimatedHz + ' Hz (zmierzone)' : 'Hz niezmierzone') + ']</span></div>' +
             '<div><span style="opacity:0.5;">Controller:</span> ' + controllerHTML + '</div>' +
-            '<div><span style="opacity:0.5;">Vulkan/WebGPU:</span> <span style="color:' + vulkanColor + ';">' + (hw.vulkan.supported ? 'YES' : 'NO') + '</span></div>' +
+            '<div><span style="opacity:0.5;">Vulkan/WebGPU:</span> <span style="color:' + vulkanColor + ';">' + vulkanText + '</span>' + (hw.vulkan.unknown ? ' <span style="opacity:0.5;">[przeglądarka nie wykrywa — nie mylić z brakiem]</span>' : '') + '</div>' +
             '<div><span style="opacity:0.5;">Browser:</span> <span style="color:var(--green);">' + hw.browser.name + ' ' + hw.browser.version + '</span></div>' +
             '<div><span style="opacity:0.5;">OS:</span> <span style="color:var(--green);">' + hw.os.name + ' ' + hw.os.arch + '</span></div>' +
             (hw.battery.available ?
@@ -492,6 +521,14 @@ function renderRecommendedProfile(hw, containerId) {
     html += '<div><span style="opacity:0.5;">Audio:</span> <span style="color:var(--green);">XAudio2 / cubeb</span></div>';
     html += '</div>';
     html += '<div style="margin-top:12px; font-size:0.75em; opacity:0.5;">These settings are auto-recommended based on your hardware. Apply manually in each emulator.</div>';
+    if (hw.ram && hw.ram.hidden) {
+        html += '<div style="margin-top:6px; font-size:0.75em; color:var(--warn);">RAM nieujawnione przez przeglądarkę — ustawienia pamięci ostrożne (przyjęto wartość neutralną, nie zmierzoną).</div>';
+    } else if (hw.ram && hw.ram.capped) {
+        html += '<div style="margin-top:6px; font-size:0.75em; opacity:0.5;">RAM 8 GB to limit Chromium — przy większej pamięci możesz podnieść rozdzielczość o stopień.</div>';
+    }
+    if (hw.gpu && hw.gpu.estimated) {
+        html += '<div style="margin-top:6px; font-size:0.75em; color:var(--warn);">GPU zamaskowane przez przeglądarkę — wynik szacowany, nie zmierzony.</div>';
+    }
 
     el.innerHTML = html;
 }

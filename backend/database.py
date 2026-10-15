@@ -22,7 +22,6 @@ class Offer(Base):
     is_adult = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-<<<<<<< HEAD
     # price is what a scraper *assumed*; these three record what was actually
     # measured and where. price_source is None whenever price_claim was not
     # read from the store's own API — the UI shows "nie sprawdzono" for those,
@@ -43,10 +42,6 @@ class PriceHistory(Base):
     seen_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     __table_args__ = (Index("ix_price_history_offer_day", "offer_id", "seen_at"),)
 
-=======
-    __table_args__ = (Index("ix_offers_url", "url", unique=True),)
-
->>>>>>> main
 def init_db(db_path="matrixhunt.db"):
     if not db_path.startswith("sqlite"):
         db_path = f"sqlite:///{db_path}"

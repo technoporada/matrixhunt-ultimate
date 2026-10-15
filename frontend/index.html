@@ -84,6 +84,31 @@
             box-shadow: var(--glow);
         }
         .stats-bar span { white-space: nowrap; }
+        .topnav {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px;
+            border: 2px solid var(--green);
+            margin: 15px 0 0;
+            background: rgba(0,40,0,0.95);
+            flex-wrap: wrap;
+            box-shadow: var(--glow);
+        }
+        .topnav a {
+            color: var(--green);
+            text-decoration: none;
+            border: 1px solid var(--green);
+            padding: 6px 12px;
+            font-size: 0.8em;
+            letter-spacing: 2px;
+            font-weight: bold;
+            background: rgba(0,30,0,0.95);
+        }
+        .topnav a:hover, .topnav a.active {
+            background: var(--green);
+            color: #000;
+        }
         .controls {
             display: flex;
             gap: 10px;
@@ -624,6 +649,19 @@
                         )}
                     </header>
 
+                    <nav className="topnav">
+                        <a href="/" className="active">HOME</a>
+                        <a href="/offers">OFERTY</a>
+                        <a href="/view">VIEW</a>
+                        <a href="/db">DB</a>
+                        <a href="/retro">RETRO</a>
+                        <a href="/pad">PAD</a>
+                        <a href="/wiki">WIKI</a>
+                        <a href="/bookmarks">BOOKMARKS</a>
+                        <a href="/flash">FLASH</a>
+                        <a href="/uwagi">UWAGI</a>
+                    </nav>
+
                     <div className="stats-bar">
                         <span>{T.offers}: {stats.total || offers.length}</span>
                         <span>{T.sources}: {typeof stats.sources === 'object' ? Object.keys(stats.sources).length : (stats.sources || '—')}</span>
@@ -805,10 +843,15 @@
                     </div>
 
                     <footer>
+                        <a href="/offers">OFERTY</a>
+                        <a href="/view">VIEW</a>
+                        <a href="/db">DB</a>
                         <a href="/pad" data-i18n="nav.pad">PAD</a>
                         <a href="/retro" data-i18n="nav.retro">RETRO</a>
                         <a href="/wiki" data-i18n="nav.wiki">WIKI</a>
                         <a href="/bookmarks" data-i18n="nav.bookmarks">BOOKMARKS</a>
+                        <a href="/flash">FLASH</a>
+                        <a href="/uwagi">UWAGI</a>
                         <div style={{marginTop:'10px', fontSize:'0.7em', opacity:0.4}}>
                             MATRIXHUNT ULTIMATE v2.0 // License: CC BY-NC-SA 4.0 // Author: Arkadiusz Slowik<br />
                             This software is FREE. If someone is selling it, they are scammers.

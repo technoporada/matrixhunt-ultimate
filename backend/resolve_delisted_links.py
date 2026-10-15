@@ -18,7 +18,21 @@ sys.path.insert(0, str(HERE))
 from scrapers.delisted import DELISTED_GAMES
 
 OUT = HERE.parent / "data" / "delisted_links.json"
-CACHE = Path("/tmp/opencode/delisted_cdx_cache.json")
+
+
+def _cache_path():
+    """Cache w katalogu tymczasowym bieżącego usera — bez /home/... na sztywno."""
+    import os
+    import tempfile
+    env = os.environ.get("MH_RUN_DIR", "").strip()
+    if env:
+        return Path(env) / "delisted_cdx_cache.json"
+    user = os.environ.get("USER", "u") or "u"
+    base = Path(os.environ.get("TMPDIR") or tempfile.gettempdir()) / f"matrixhunt-{user}"
+    return base / "delisted_cdx_cache.json"
+
+
+CACHE = _cache_path()
 
 
 def fetch_json(url, timeout=30):
@@ -84,6 +98,7 @@ def main():
         except Exception:
             pass
     cache = {}
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
     if CACHE.exists():
         cache = {k: tuple(v) for k, v in json.loads(CACHE.read_text()).items()}
 

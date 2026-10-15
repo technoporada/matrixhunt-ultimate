@@ -515,11 +515,12 @@
             </div>
 
             <div class="flashpoint-box" style="border-color:var(--cyan);margin-top:12px;">
-                <h3>ARCHIVE.ORG FLASH COLLECTION</h3>
-                <p>Browse Flash games on Archive.org. Install Ruffle extension to play .swf directly in browser.</p>
+                <h3>BUILT-IN FLASH PLAYER (RUFFLE 0.7.1, LOKALNIE)</h3>
+                <p>Player jest wbudowany w tę aplikację i działa offline, w tej samej karcie — bez rozszerzeń i bez CDN. Upuść plik .swf na stronie /flash.</p>
                 <p style="margin-top:8px;">
+                    <a href="/flash" rel="noopener">Otwórz /flash &raquo;</a> &nbsp;|&nbsp;
                     <a href="https://archive.org/details/flash_games" target="_blank" rel="noopener">Browse Collection &raquo;</a> &nbsp;|&nbsp;
-                    <a href="https://ruffle.rs" target="_blank" rel="noopener">Get Ruffle Player &raquo;</a>
+                    <a href="https://ruffle.rs" target="_blank" rel="noopener">Ruffle Project &raquo;</a>
                 </p>
             </div>
 
@@ -605,6 +606,9 @@
                 DISCLAIMER: This scanner uses browser APIs (WebGL, Gamepad, Screen) to estimate hardware capabilities.
                 Actual emulator performance may vary depending on game, settings, and drivers.
                 Results are estimates, not guarantees. Hardware detection requires no plugins and runs entirely in your browser.
+                Uczciwe granice: RAM 0 = przeglądarka ukrywa (Firefox/Safari), RAM 8 GB = możliwy limit Chromium (możesz mieć więcej),
+                Vulkan pokazujemy jako UNKNOWN gdy przeglądarka nie wykrywa (to nie to samo co brak),
+                zamaskowany renderer GPU punktujemy jako szacowany, a nie zmierzony.
             </div>
         </div>
 

@@ -331,10 +331,14 @@
                                      paddingBottom:10, borderBottom:'1px solid var(--border)'}}>
                             <a href="/"          style={NAV_L}>START</a>
                             <a href="/offers"    style={{...NAV_L, borderColor:'#0f0'}}>OFERTY</a>
-                            <a href="/pad"       style={NAV_L}>PAD</a>
+                            <a href="/view"      style={NAV_L}>VIEW</a>
+                            <a href="/db"        style={NAV_L}>DB</a>
                             <a href="/retro"     style={NAV_L}>RETRO</a>
+                            <a href="/pad"       style={NAV_L}>PAD</a>
                             <a href="/wiki"      style={NAV_L}>WIKI</a>
                             <a href="/bookmarks" style={NAV_L}>BOOKMARKS</a>
+                            <a href="/flash"     style={NAV_L}>FLASH</a>
+                            <a href="/uwagi"     style={NAV_L}>UWAGI</a>
                         </nav>
                         <h1>MATRIXHUNT ULTIMATE</h1>
                         <div

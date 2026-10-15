@@ -396,18 +396,30 @@ function App() {
       borderColor: '#0f0'
     }
   }, "OFERTY"), /*#__PURE__*/React.createElement("a", {
-    href: "/pad",
+    href: "/view",
     style: NAV_L
-  }, "PAD"), /*#__PURE__*/React.createElement("a", {
+  }, "VIEW"), /*#__PURE__*/React.createElement("a", {
+    href: "/db",
+    style: NAV_L
+  }, "DB"), /*#__PURE__*/React.createElement("a", {
     href: "/retro",
     style: NAV_L
   }, "RETRO"), /*#__PURE__*/React.createElement("a", {
+    href: "/pad",
+    style: NAV_L
+  }, "PAD"), /*#__PURE__*/React.createElement("a", {
     href: "/wiki",
     style: NAV_L
   }, "WIKI"), /*#__PURE__*/React.createElement("a", {
     href: "/bookmarks",
     style: NAV_L
-  }, "BOOKMARKS")), /*#__PURE__*/React.createElement("h1", null, "MATRIXHUNT ULTIMATE"), /*#__PURE__*/React.createElement("div", {
+  }, "BOOKMARKS"), /*#__PURE__*/React.createElement("a", {
+    href: "/flash",
+    style: NAV_L
+  }, "FLASH"), /*#__PURE__*/React.createElement("a", {
+    href: "/uwagi",
+    style: NAV_L
+  }, "UWAGI")), /*#__PURE__*/React.createElement("h1", null, "MATRIXHUNT ULTIMATE"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: '0.7em',
       marginTop: 8,

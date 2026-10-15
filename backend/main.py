@@ -15,11 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-<<<<<<< HEAD
 from database import init_db, Offer, PriceHistory
-=======
-from database import init_db, Offer
->>>>>>> main
 from sqlalchemy import text
 
 from scrapers.gamerpower import GamerpowerScraper
@@ -61,6 +57,10 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 app.mount("/tools", StaticFiles(directory=str(TOOLS_DIR)), name="tools")
+# Ruffle self-hosted (.wasm) musi mieć application/wasm, inaczej przeglądarka
+# odmawia inicjalizacji. Na części systemów mimetypes nie zna .wasm.
+import mimetypes as _mimetypes
+_mimetypes.add_type("application/wasm", ".wasm")
 # /data is NOT a blanket static mount. It held data/vulncheck.json, which
 # pins the exact version of every installed dependency, and that file was
 # served to anyone who asked for /data/vulncheck.json with no token. Only the
@@ -227,7 +227,6 @@ DISABLED_SCRAPERS = {
     "Itch.io": ItchScraper,
 }
 
-<<<<<<< HEAD
 # Why each one is parked. This was a comment in the source, and /api/scrapers
 # returned status="parked" with no reason, so the dashboard could not tell the
 # user anything except that something was off. Comments are not an interface.
@@ -242,8 +241,6 @@ PARKED_REASON = {
     "Itch.io": "/games/free zwraca strony autorów, nie giveawayy; parser stawiał price=\"Free\" bez czytania strony sklepu",
 }
 
-=======
->>>>>>> main
 
 @app.get("/api/scrapers")
 async def scrapers_status():
@@ -253,12 +250,8 @@ async def scrapers_status():
     for cls in SCRAPER_CLASSES:
         active.append({"name": cls.__name__, "module": cls.__module__.split(".")[-1],
                        "status": "active"})
-<<<<<<< HEAD
     parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked",
                "reason": PARKED_REASON.get(n, "brak zanotowanego powodu")}
-=======
-    parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked"}
->>>>>>> main
               for n, c in DISABLED_SCRAPERS.items()]
     return {"active": active, "parked": parked,
             "counts": {"active": len(active), "parked": len(parked)}}
@@ -311,14 +304,10 @@ def load_seed_catalog():
         print(f"Seed catalog unreadable: {e}")
         return 0
     return save_deals_to_db([
-<<<<<<< HEAD
         SimpleNamespace(title=s["title"], url=s["url"],
                         price=s.get("price", ""),
                         price_claim=s.get("price_claim") or s.get("price") or "Free",
                         price_source=s.get("price_source", "listing:seed-catalog"),
-=======
-        SimpleNamespace(title=s["title"], url=s["url"], price=s.get("price", "Free"),
->>>>>>> main
                         original_price="", category=s.get("category", "games"),
                         source=s.get("source", "SeedCatalog"),
                         description=s.get("description", ""), image_url="",
@@ -328,7 +317,6 @@ def load_seed_catalog():
     ])
 
 
-<<<<<<< HEAD
 def _apply_price(offer, deal):
     """Przepisuje cene na istniejacym wierszu. True, gdy cos sie zmienilo.
 
@@ -353,39 +341,23 @@ def save_deals_to_db(deals):
     session = SessionFactory()
     new_count = 0
     updated_count = 0
-=======
-def save_deals_to_db(deals):
-    session = SessionFactory()
-    new_count = 0
->>>>>>> main
     try:
         # Only the URLs this batch actually collides with need checking.
         # Pulling every stored URL into a set loaded the whole column into
         # memory on each scrape, then copied it a second time into `seen`;
         # on a large catalog that is tens of thousands of rows for nothing.
         batch_urls = {d.url for d in deals if getattr(d, "url", None)}
-<<<<<<< HEAD
         existing = {}
         if batch_urls:
             for o in session.query(Offer).filter(Offer.url.in_(batch_urls)):
                 existing[o.url] = o
-=======
-        existing_urls = set()
-        if batch_urls:
-            q = session.query(Offer.url).filter(Offer.url.in_(batch_urls))
-            existing_urls = {row[0] for row in q.all()}
->>>>>>> main
         seen = set()
 
         for deal in deals:
             if not deal.url or deal.url in seen:
                 continue
             # Scrapers parse hostile third-party markup; only http(s) links
-<<<<<<< HEAD
             # may reach the DB. Anything else (javascript:, data:, ...) would
-=======
-            # may reach the DB. Anything else (javascript:, data:, …) would
->>>>>>> main
             # flow into href/src attributes on the dashboard. Host check too:
             # "http://" passes a prefix test and is not a usable link.
             if not deal.url.lower().startswith(("http://", "https://")):
@@ -393,7 +365,6 @@ def save_deals_to_db(deals):
             if not urlparse(deal.url).hostname:
                 continue
             seen.add(deal.url)
-<<<<<<< HEAD
 
             znany = existing.get(deal.url)
             if znany is not None:
@@ -413,20 +384,14 @@ def save_deals_to_db(deals):
                         price_source=znany.price_source,
                     ))
                     updated_count += 1
-=======
-            if deal.url in existing_urls:
->>>>>>> main
                 continue
 
             offer = Offer(
                 title=deal.title, url=deal.url, price=deal.price,
-<<<<<<< HEAD
                 price_claim=getattr(deal, "price_claim", None),
                 price_source=getattr(deal, "price_source", None),
                 price_checked=(datetime.now(timezone.utc)
                                if getattr(deal, "price_source", None) else None),
-=======
->>>>>>> main
                 original_price=deal.original_price, category=deal.category,
                 source=deal.source, description=deal.description,
                 image_url=deal.image_url, requires_login=deal.requires_login,
@@ -434,11 +399,7 @@ def save_deals_to_db(deals):
                 is_adult=deal.is_adult,
             )
             session.add(offer)
-<<<<<<< HEAD
             existing[deal.url] = offer
-=======
-            existing_urls.add(deal.url)
->>>>>>> main
             new_count += 1
 
         session.commit()
@@ -451,11 +412,7 @@ def save_deals_to_db(deals):
         raise
     finally:
         session.close()
-<<<<<<< HEAD
     return new_count, updated_count
-=======
-    return new_count
->>>>>>> main
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -463,7 +420,6 @@ async def root():
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
-<<<<<<< HEAD
 @app.get("/offers", response_class=HTMLResponse)
 async def offers_page():
     # Osobna trasa, bo strona glowna (sprzet + statystyki) jest zwyklym HTML-em
@@ -477,8 +433,6 @@ async def uwagi_page():
     return FileResponse(str(TOOLS_DIR / "uwagi.html"))
 
 
-=======
->>>>>>> main
 MAX_OFFERS_LIMIT = 1000
 
 
@@ -502,16 +456,11 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
         offers = query.order_by(Offer.created_at.desc()).limit(limit).all()
         return [
             {
-<<<<<<< HEAD
                   "id": o.id, "title": o.title, "url": o.url, "price": o.price,
                   "price_claim": o.price_claim,
                   "price_source": o.price_source,
                   "price_checked": o.price_checked.isoformat() if o.price_checked else None,
                   "original_price": o.original_price, "category": o.category,
-=======
-                "id": o.id, "title": o.title, "url": o.url, "price": o.price,
-                "original_price": o.original_price, "category": o.category,
->>>>>>> main
                 "source": o.source, "description": o.description,
                 "image_url": o.image_url, "requires_login": o.requires_login,
                 "has_adfly": o.has_adfly, "has_captcha": o.has_captcha,
@@ -524,7 +473,6 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
         session.close()
 
 
-<<<<<<< HEAD
 @app.get("/api/price-changes")
 async def price_changes(limit: int = 30):
     """Ostatnie zmiany cen, najnowsze pierwsze.
@@ -550,8 +498,6 @@ async def price_changes(limit: int = 30):
         session.close()
 
 
-=======
->>>>>>> main
 @app.get("/api/stats")
 async def get_stats():
     session = SessionFactory()
@@ -559,7 +505,6 @@ async def get_stats():
         total = session.query(Offer).count()
         active = session.query(Offer).filter(Offer.is_active == True).count()
         sources = session.execute(text("SELECT source, COUNT(*) FROM offers GROUP BY source")).fetchall()
-<<<<<<< HEAD
         # Ile cen jest zmierzonych, ile tylko zgloszonych, a ile wcale.
         # Strona glowna pokazuje te trzy liczby osobno, bo "darmowe" bez
         # informacji, kto to sprawdzil, jest tym samym klamstwem co kiedys.
@@ -572,11 +517,6 @@ async def get_stats():
             "price_measured": measured,
             "price_claimed": claimed,
             "price_unknown": total - measured - claimed,
-=======
-        return {
-            "total": total, "active": active,
-            "sources": {s[0]: s[1] for s in sources},
->>>>>>> main
             "last_update": datetime.now(timezone.utc).isoformat(),
         }
     finally:
@@ -585,18 +525,11 @@ async def get_stats():
 
 @app.post("/api/scrape")
 async def trigger_scrape():
-<<<<<<< HEAD
     wynik = await guarded_scrape()
     if wynik is None:
         return JSONResponse({"status": "busy", "detail": "scrape already running"}, status_code=409)
     new, updated = wynik
     return {"status": "ok", "new": new, "updated": updated}
-=======
-    new = await guarded_scrape()
-    if new is None:
-        return JSONResponse({"status": "busy", "detail": "scrape already running"}, status_code=409)
-    return {"status": "ok", "new": new}
->>>>>>> main
 
 
 @app.get("/api/favorites")
@@ -1301,11 +1234,7 @@ async def startup():
     try:
         if session.query(Offer).count() < 20:
             try:
-<<<<<<< HEAD
                 n, _ = load_seed_catalog()
-=======
-                n = load_seed_catalog()
->>>>>>> main
                 print(f"Seed catalog: {n} permanent-free titles ensured.")
             except Exception as e:
                 print(f"Seed catalog write failed: {e}")

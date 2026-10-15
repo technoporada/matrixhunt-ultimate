@@ -7,7 +7,16 @@
     <script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
     <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'matrix')}catch(e){document.documentElement.setAttribute('data-theme','matrix')}</script>
 <title>MATRIX FLASH PLAYER // RUFFLE WASM</title>
-<script src="https://unpkg.com/@ruffle/ruffle@latest/ruffle.js"></script>
+<!-- Ruffle 0.7.1 zvendorowane lokalnie (tools/../frontend/vendor/ruffle/):
+     zero zapytań do CDN, player działa offline w tej samej karcie. -->
+<script>
+  window.RufflePlayer = window.RufflePlayer || {};
+  window.RufflePlayer.config = Object.assign(
+    { publicPath: "/static/vendor/ruffle/", polyfill: false },
+    window.RufflePlayer.config || {}
+  );
+</script>
+<script src="/static/vendor/ruffle/ruffle.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -279,17 +288,13 @@
         <span class="blink">_</span> AWAITING SWF INPUT...<br>
         <span style="color:var(--muted);font-size:0.8em">Drop a .swf file above to begin</span>
         <div id="ruffle-warning" style="display:none;color:var(--warn);font-size:0.8em;margin-top:12px;">
-          RUFFLE WEB BUILD UNAVAILABLE: the npm CDN package is gone upstream,
-          so in-browser playback cannot start. Use the
-          <a href="https://ruffle.rs/#downloads" target="_blank" rel="noopener" style="color:var(--green)">desktop Ruffle build</a>
-          or the Ruffle browser extension instead. Your .swf files stay local either way.
         </div>
       </div>
     </div>
     <div class="controls">
       <button class="btn" id="btn-fullscreen" onclick="toggleFullscreen()" disabled>[ FULLSCREEN ]</button>
       <button class="btn" id="btn-restart" onclick="restartSwf()" disabled>[ RESTART ]</button>
-      <button class="btn" id="btn-mute" onclick="toggleMute()" disabled>[ MUTE ]</button>
+      <button class="btn" id="btn-pause" onclick="togglePause()" disabled title="Pauza / wznowienie (Ruffle nie daje API do mute)">[ PAUSE ]</button>
     </div>
     <div class="status-line" id="status-line">&gt; READY<span class="blink">_</span></div>
   </div>
@@ -370,26 +375,59 @@
   const playerPlaceholder = document.getElementById('player-placeholder');
   const btnFullscreen = document.getElementById('btn-fullscreen');
   const btnRestart = document.getElementById('btn-restart');
-  const btnMute = document.getElementById('btn-mute');
   const statusLine = document.getElementById('status-line');
 
   let currentObjectUrl = null;
   let currentFileName = '';
-  let isMuted = false;
+  let isPaused = false;
+  let rufflePlayerEl = null;
 
-  // The npm Ruffle web build is gone upstream: without window.RufflePlayer
-  // (or the <object> polyfill it installs) dropped files cannot play.
-  // Say so plainly instead of a dead black rectangle.
-  (function checkRuffle() {
-    var ok = false;
+  function setBtn(id, enabled, label) {
+    var b = document.getElementById(id);
+    if (!b) return;
+    b.disabled = !enabled;
+    if (label) b.textContent = label;
+  }
+
+  function makeRufflePlayer() {
+    var ruffle = getRuffle();
+    if (!ruffle) return null;
     try {
-      ok = !!(window.RufflePlayer ||
-        (window.navigator.mimeTypes && window.navigator.mimeTypes['application/x-shockwave-flash']));
-    } catch (e) { ok = false; }
-    if (!ok) {
-      var w = document.getElementById('ruffle-warning');
-      if (w) w.style.display = 'block';
+      var p = ruffle.createPlayer();
+      p.style.width = '100%';
+      p.style.height = '100%';
+      return p;
+    } catch (e) {
+      return null;
     }
+  }
+
+  // Lokalny Ruffle 0.7.1 (self-hosted, /static/vendor/ruffle/).
+  // Stary pakiet npm @ruffle/ruffle zniknął z upstream (404 na unpkg i jsdelivr),
+  // więc strona nie używa już żadnego CDN — odtwarzanie jest w tej karcie.
+  function getRuffle() {
+    try {
+      if (window.RufflePlayer && typeof window.RufflePlayer.newest === 'function') {
+        return window.RufflePlayer.newest();
+      }
+    } catch (e) { /* brak Ruffle */ }
+    return null;
+  }
+  (function checkRuffle() {
+    var w = document.getElementById('ruffle-warning');
+    var ruffle = getRuffle();
+    if (ruffle) {
+      var v = '';
+      try { v = ruffle.version || ruffle.RUFFLE_VERSION || ''; } catch (e) {}
+      w.style.display = 'block';
+      w.style.color = 'var(--green)';
+      w.textContent = 'RUFFLE OK (lokalnie' + (v ? ', v' + v : '') + '): upuść .swf, gra ruszy w tej karcie. Pliki nie opuszczają Twojego komputera.';
+      return;
+    }
+    w.style.display = 'block';
+    w.innerHTML = 'RUFFLE NIEDOSTĘPNE: brak /static/vendor/ruffle/ruffle.js. '
+      + 'Użyj <a href="https://ruffle.rs/#downloads" target="_blank" rel="noopener" style="color:var(--green)">desktop Ruffle</a> '
+      + 'albo rozszerzenia Ruffle. Twoje .swf i tak zostają lokalnie.';
   })();
 
   dropZone.addEventListener('dragover', function(e) {
@@ -433,45 +471,60 @@
     playerPlaceholder.style.display = 'none';
     playerContainer.classList.add('swf-loaded');
 
-    const existing = playerContainer.querySelector('object, embed');
-    if (existing) existing.remove();
+    playerContainer.querySelectorAll('ruffle-player, object, embed').forEach(function(n) { n.remove(); });
+    rufflePlayerEl = makeRufflePlayer();
+    isPaused = false;
+    setBtn('btn-pause', false, '[ PAUSE ]');
 
-    const obj = document.createElement('object');
-    obj.type = 'application/x-shockwave-flash';
-    obj.data = currentObjectUrl;
-    obj.style.width = '100%';
-    obj.style.height = '100%';
-    obj.innerHTML = '<param name="movie" value="' + currentObjectUrl + '">' +
-                    '<param name="allowscriptaccess" value="always">' +
-                    '<param name="allowfullscreen" value="true">';
-    playerContainer.appendChild(obj);
+    if (!rufflePlayerEl) {
+      statusLine.innerHTML = '&gt; ERROR: RUFFLE MISSING<span class="blink">_</span>';
+      return;
+    }
+    playerContainer.appendChild(rufflePlayerEl);
 
-    btnFullscreen.disabled = false;
-    btnRestart.disabled = false;
-    btnMute.disabled = false;
-
-    statusLine.innerHTML = '&gt; PLAYING: ' + file.name.toUpperCase() + '<span class="blink">_</span>';
+    var loaded = null;
+    try {
+      loaded = rufflePlayerEl.load({ url: currentObjectUrl, allowScriptAccess: false, backgroundColor: "#000000" });
+    } catch (e) {
+      statusLine.innerHTML = '&gt; ERROR: ' + String(e && e.message || e).toUpperCase().slice(0, 80) + '<span class="blink">_</span>';
+      return;
+    }
+    Promise.resolve(loaded).then(function() {
+      setBtn('btn-fullscreen', true);
+      setBtn('btn-restart', true);
+      setBtn('btn-pause', true, '[ PAUSE ]');
+      statusLine.innerHTML = '&gt; PLAYING: ' + file.name.toUpperCase() + '<span class="blink">_</span>';
+    }).catch(function(err) {
+      var msg = String((err && err.message) || err || 'load failed').toUpperCase().slice(0, 100);
+      statusLine.innerHTML = '&gt; ERROR: ' + msg + '<span class="blink">_</span>';
+    });
+    return;
   }
 
   window.restartSwf = function() {
-    if (!currentObjectUrl || !currentFileName) return;
+    if (!currentObjectUrl || !currentFileName || !rufflePlayerEl) return;
     statusLine.innerHTML = '&gt; RESTARTING...<span class="blink">_</span>';
-    const existing = playerContainer.querySelector('object, embed');
-    if (existing) existing.remove();
-
-    const obj = document.createElement('object');
-    obj.type = 'application/x-shockwave-flash';
-    obj.data = currentObjectUrl;
-    obj.style.width = '100%';
-    obj.style.height = '100%';
-    obj.innerHTML = '<param name="movie" value="' + currentObjectUrl + '">' +
-                    '<param name="allowscriptaccess" value="always">' +
-                    '<param name="allowfullscreen" value="true">';
-    playerContainer.appendChild(obj);
-    statusLine.innerHTML = '&gt; PLAYING: ' + currentFileName.toUpperCase() + '<span class="blink">_</span>';
+    try {
+      var loaded = rufflePlayerEl.load({ url: currentObjectUrl, allowScriptAccess: false, backgroundColor: "#000000" });
+      Promise.resolve(loaded).then(function() {
+        isPaused = false;
+        setBtn('btn-pause', true, '[ PAUSE ]');
+        statusLine.innerHTML = '&gt; PLAYING: ' + currentFileName.toUpperCase() + '<span class="blink">_</span>';
+      }).catch(function(err) {
+        statusLine.innerHTML = '&gt; ERROR: ' + String((err && err.message) || err).toUpperCase().slice(0, 100) + '<span class="blink">_</span>';
+      });
+    } catch (e) {
+      statusLine.innerHTML = '&gt; ERROR: ' + String(e && e.message || e).toUpperCase().slice(0, 80) + '<span class="blink">_</span>';
+    }
   };
 
   window.toggleFullscreen = function() {
+    try {
+      if (rufflePlayerEl && typeof rufflePlayerEl.enterFullscreen === 'function') {
+        rufflePlayerEl.enterFullscreen();
+        return;
+      }
+    } catch (e) {}
     if (!document.fullscreenElement) {
       playerContainer.requestFullscreen().catch(function() {});
     } else {
@@ -479,15 +532,27 @@
     }
   };
 
-  window.toggleMute = function() {
-    isMuted = !isMuted;
-    btnMute.textContent = isMuted ? '[ UNMUTE ]' : '[ MUTE ]';
+  // Ruffle 0.7 nie wystawia publicznego mute w API JS, więc przycisk robi
+  // uczciwą PAUZĘ (play/pause), a nie ściemnianie obrazu udające wyciszenie.
+  window.togglePause = function() {
+    if (!rufflePlayerEl) return;
     try {
-      const obj = playerContainer.querySelector('object');
-      if (obj) {
-        obj.style.opacity = isMuted ? '0.5' : '1';
+      if (!isPaused) {
+        if (typeof rufflePlayerEl.pause === 'function') rufflePlayerEl.pause();
+        else if (typeof rufflePlayerEl.suspend === 'function') rufflePlayerEl.suspend();
+        isPaused = true;
+        setBtn('btn-pause', true, '[ RESUME ]');
+        statusLine.innerHTML = '&gt; PAUSED<span class="blink">_</span>';
+      } else {
+        if (typeof rufflePlayerEl.play === 'function') rufflePlayerEl.play();
+        else if (typeof rufflePlayerEl.resume === 'function') rufflePlayerEl.resume();
+        isPaused = false;
+        setBtn('btn-pause', true, '[ PAUSE ]');
+        statusLine.innerHTML = '&gt; PLAYING: ' + currentFileName.toUpperCase() + '<span class="blink">_</span>';
       }
-    } catch(e) {}
+    } catch (e) {
+      statusLine.innerHTML = '&gt; ERROR: ' + String(e && e.message || e).toUpperCase().slice(0, 80) + '<span class="blink">_</span>';
+    }
   };
 })();
 </script>
