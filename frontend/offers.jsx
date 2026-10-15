@@ -33,7 +33,7 @@
         }
         setInterval(drawMatrix, 50);
 
-        const SOURCES = ['ALL','GamerPower','Epic','Steam','GOG','Itch.io','IndieGala','FreeToGame','FreeSteamKeys','Nebula','SharewareOnSale','Humble','GameJolt','GiveawayRadar','DelistedSteam','Reddit'];
+        const SOURCES = ['ALL','GamerPower','Epic','Steam','GOG','Itch.io','IndieGala','FreeToGame','FreeSteamKeys','Nebula','SharewareOnSale','Humble','GameJolt','GiveawayRadar','DelistedSteam','Reddit','LowcyGier'];
 
     /* THEME_LABELS and DASH_STR were verbatim copies of the dictionaries in
      * tools/theme.js and tools/lang.js. That made three sources of truth for
@@ -100,6 +100,13 @@
                 });
             }, [offers, watchlist, watchMatch, isFresh]);
             const [nsfwMode, setNsfwMode] = useState(() => localStorage.getItem('mh_nsfw') === 'true');
+            // Bramka wieku jak na dashboardzie: odblokowanie tylko przez modal 18+.
+            const [showAgeGate, setShowAgeGate] = useState(false);
+            const confirmAgeGate = useCallback(() => {
+                setNsfwMode(true);
+                try { localStorage.setItem('mh_nsfw', 'true'); } catch {}
+                setShowAgeGate(false);
+            }, []);
             const [theme, setTheme] = useState(() => (window.mhTheme ? window.mhTheme.get() : 'matrix'));
             const [lang, setLang] = useState(() => (window.mhLang ? window.mhLang.get() : 'en'));
             // Strings come from tools/lang.js so the dictionary lives in one place.
@@ -212,7 +219,9 @@
             const fetchData = useCallback(async () => {
                 setLoading(true);
                 try {
-                    const res = await fetch('/api/offers');
+                    // Treści 18+ schodzą z API tylko po odblokowaniu bramki wieku.
+                    const url = nsfwMode ? '/api/offers?nsfw=1' : '/api/offers';
+                    const res = await fetch(url);
                     if (res.ok) {
                         const data = await res.json();
                         setOffers(Array.isArray(data) ? data : data.offers || []);
@@ -227,7 +236,7 @@
                 } catch(e) {}
                 setLoading(false);
                 showToast('DATA SYNCHRONIZED');
-            }, [showToast]);
+            }, [showToast, nsfwMode]);
 
             const triggerScrape = useCallback(async () => {
                 setLoading(true);
@@ -343,7 +352,15 @@
                         <h1>MATRIXHUNT ULTIMATE</h1>
                         <div
                             style={{fontSize:'0.7em', marginTop:8, cursor:'pointer', opacity: nsfwMode ? 1 : 0.4, letterSpacing:2}}
-                            onClick={() => { const v = !nsfwMode; setNsfwMode(v); localStorage.setItem('mh_nsfw', v); }}
+                            onClick={() => {
+                                if (nsfwMode) {
+                                    setNsfwMode(false);
+                                    try { localStorage.setItem('mh_nsfw', 'false'); } catch {}
+                                } else {
+                                    setShowAgeGate(true);
+                                }
+                            }}
+                            title={lang === 'pl' ? 'Treści 18+ (za bramką wieku)' : '18+ content (age-gated)'}
                         >
                             {nsfwMode ? T.nsfw_on : T.nsfw_off}
                         </div>
@@ -571,6 +588,33 @@
                       </footer>
 
                     {toast && <div className="toast">{toast}</div>}
+
+                    {showAgeGate && (
+                        <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%',
+                                     background:'rgba(0,0,0,0.85)', zIndex:200,
+                                     display:'flex', alignItems:'center', justifyContent:'center'}}
+                             onClick={() => setShowAgeGate(false)}>
+                            <div style={{border:'2px solid var(--green)', background:'var(--card)',
+                                         padding:'30px', maxWidth:'420px', textAlign:'center'}}
+                                 onClick={e => e.stopPropagation()}>
+                                <div style={{fontSize:'2em'}}>🔞</div>
+                                <h3 style={{letterSpacing:3, margin:'10px 0'}}>
+                                    {lang === 'pl' ? 'TREŚCI 18+' : 'ADULT CONTENT'}
+                                </h3>
+                                <p style={{fontSize:'0.8em', opacity:0.8, marginBottom:'20px'}}>
+                                    {lang === 'pl'
+                                        ? 'Ta sekcja zawiera gry dla dorosłych. Potwierdź, że masz ukończone 18 lat.'
+                                        : 'This section lists adult games. Confirm you are 18 or older.'}
+                                </p>
+                                <button onClick={confirmAgeGate} style={{marginRight:'10px'}}>
+                                    {lang === 'pl' ? 'MAM 18+ — POKAŻ' : 'I AM 18+ — SHOW'}
+                                </button>
+                                <button onClick={() => setShowAgeGate(false)}>
+                                    {lang === 'pl' ? 'WRÓĆ' : 'GO BACK'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </>
             );
         }

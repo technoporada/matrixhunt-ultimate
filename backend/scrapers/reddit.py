@@ -135,7 +135,6 @@ class RedditScraper(BaseScraper):
                         title=self.clean_title(title),
                         url=url,
                         **self.listed_as_free(),
-                        price="Free",
                         category="games",
                         source="Reddit",
                         description=f"[r/FreeGameFindings | {flair or 'no flair'} | "

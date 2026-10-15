@@ -1,0 +1,430 @@
+"""
+Testy niezależne: sprawdzają ZACHOWANIE kodu na spreparowanych danych,
+nie jego treść.
+
+Po co ten plik: 52 testy przechodziły przy żywym błędzie —
+Deal.price domyślnie "Free" (zdublowane pole w dataclass, wbrew komentarzowi
+"empty price ... is the honest default"). Statyczna analiza kodu tego nie
+złapała, bo patrzyła na wywołania, nie na wartości. Każdy test poniżej da się
+złamać psując kod; żaden nie czyta implementacji.
+
+Uruchomienie:  ../.venv/bin/python -m pytest tests/test_niezalezne.py -v
+"""
+import pathlib
+import re
+import shutil
+import sqlite3
+import subprocess
+import sys
+from types import SimpleNamespace
+
+import pytest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
+
+
+# ============================================================ Q1: domyślna cena
+def test_Q1_deal_bez_ceny_nie_kłamie():
+    """Deal() bez ceny ma mieć price="" (niezmierzona), nie "Free".
+
+    To jest dokładnie to kłamstwo, które łapie test_P7 — tylko że w default,
+    więc żaden test na scraperach go nie widział. Każdy scraper i tak podaje
+    price jawnie albo przez **listed_as_free, więc zmiana defaultu nic nie psuje.
+    """
+    from scrapers.base import Deal
+    d = Deal(title="X", url="https://example.com/g")
+    assert d.price == "", f"domyślne price={d.price!r}, a umowa mówi: puste póki sklep nie potwierdzi"
+
+
+# ============================================================ Q2: znaczniki konfliktu
+_TEKSTOWE = {".py", ".html", ".js", ".css", ".json", ".sh", ".md"}
+_POMIJANE_KATALOGI = {".venv", ".git", "__pycache__", ".pytest_cache", "vendor", "_testy_usuniete"}
+
+
+def test_Q2_zero_znacznikow_konfliktu_w_repo():
+    """Regresja po awarii: main.py/database.py/.gitignore trafiły do repo
+    ze znacznikami <<<<<<< / >>>>>>> i backend nie startował.
+
+    Pomijamy vendor (cudzy kod) i kopie zapasowe — liczy się nasz kod.
+    Szukamy znaczników na początku linii (kształt z gita), nie w tekście.
+    """
+    start = re.compile(r"^(<{7} |>{7} )", re.M)
+    zle = []
+    for p in ROOT.rglob("*"):
+        if not p.is_file() or p.suffix not in _TEKSTOWE:
+            continue
+        if any(c in p.parts for c in _POMIJANE_KATALOGI):
+            continue
+        try:
+            tekst = p.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "<<<<<<< " in tekst or ">>>>>>> " in tekst:
+            if start.search(tekst):
+                zle.append(str(p.relative_to(ROOT)))
+    assert not zle, f"znaczniki konfliktu w: {zle}"
+
+
+# ============================================================ Q3: logika cen na żywym obiekcie
+def _oferta(**kw):
+    d = {"price": "", "price_claim": None, "price_source": None, "price_checked": None}
+    d.update(kw)
+    return SimpleNamespace(**d)
+
+
+def test_Q3_listing_moze_zaktualizowac_listing():
+    import main
+    o = _oferta(price="", price_claim="Free", price_source="listing:a")
+    d = _oferta(price="", price_claim="Free", price_source="listing:b")
+    assert main._apply_price(o, d) is True
+    assert o.price_source == "listing:b"
+    assert o.price_checked is not None
+
+
+def test_Q3_pomiar_api_nie_do_ruszenia_przez_listing():
+    import main
+    o = _oferta(price="0", price_claim="0", price_source="api:steam")
+    d = _oferta(price="", price_claim="Free", price_source="listing:x")
+    assert main._apply_price(o, d) is False
+    assert (o.price, o.price_source) == ("0", "api:steam")
+
+
+def test_Q3_pomiar_api_moze_naprawic_listing():
+    import main
+    o = _oferta(price="", price_claim="Free", price_source="listing:x")
+    d = _oferta(price="0", price_claim="0", price_source="api:steam")
+    assert main._apply_price(o, d) is True
+    assert o.price_source == "api:steam"
+
+
+def test_Q3_identiko_nie_liczy_sie_jako_zmiana():
+    import main
+    o = _oferta(price="0", price_claim="0", price_source="api:steam")
+    d = _oferta(price="0", price_claim="0", price_source="api:steam")
+    assert main._apply_price(o, d) is False
+
+
+# ============================================================ Q4: zapis do bazy na tymczasowej bazie
+@pytest.fixture()
+def baza(tmp_path, monkeypatch):
+    import main
+    from database import init_db
+    fabryka = init_db(f"sqlite:///{tmp_path / 't.db'}")
+    monkeypatch.setattr(main, "SessionFactory", fabryka)
+    return main
+
+
+def _deal(url, **kw):
+    from scrapers.base import Deal
+    d = {"title": "T", "url": url, "price": "", "price_claim": "Free",
+         "price_source": "listing:test", "original_price": "", "category": "games",
+         "source": "S", "description": "", "image_url": "", "requires_login": False,
+         "has_adfly": False, "has_captcha": False, "is_adult": False}
+    d.update(kw)
+    return Deal(**d)
+
+
+def test_Q4_nowy_wpis_dodaje_jeden(baza, tmp_path):
+    assert baza.save_deals_to_db([_deal("https://a.example/g1")]) == (1, 0)
+
+
+def test_Q4_powtorka_bez_zrodla_nie_duplikuje(baza):
+    baza.save_deals_to_db([_deal("https://a.example/g1")])
+    assert baza.save_deals_to_db([_deal("https://a.example/g1", price_source=None)]) == (0, 0)
+
+
+def test_Q4_powtorka_ze_zrodlem_aktualizuje_i_pisze_historie(baza, tmp_path):
+    import sqlite3
+    baza.save_deals_to_db([_deal("https://a.example/g1")])
+    assert baza.save_deals_to_db([_deal("https://a.example/g1", price="0",
+                                         price_claim="0", price_source="api:test")]) == (0, 1)
+    con = sqlite3.connect(str(tmp_path / "t.db"))
+    try:
+        assert con.execute("SELECT COUNT(*) FROM price_history").fetchone()[0] == 1
+        assert con.execute("SELECT price_source FROM offers").fetchone()[0] == "api:test"
+    finally:
+        con.close()
+
+
+def test_Q4_smieciowe_urle_nie_trafiaja_do_bazy(baza, tmp_path):
+    import sqlite3
+    for zly in ("javascript:alert(1)", "data:text/html,hi", "http://", "", "ftp://x.example/f",
+                "https://evil.example/setup.exe", "https://evil.example/gra.zip?x=1",
+                "https://evil.example/pack.rar", "https://evil.example/run.msi"):
+        assert baza.save_deals_to_db([_deal(zly)]) == (0, 0), zly
+    con = sqlite3.connect(str(tmp_path / "t.db"))
+    try:
+        assert con.execute("SELECT COUNT(*) FROM offers").fetchone()[0] == 0
+    finally:
+        con.close()
+
+
+def test_Q4_ten_sam_url_dwa_razy_w_batchu_to_jeden_wpis(baza, tmp_path):
+    import sqlite3
+    u = "https://a.example/g1"
+    assert baza.save_deals_to_db([_deal(u), _deal(u)]) == (1, 0)
+    con = sqlite3.connect(str(tmp_path / "t.db"))
+    try:
+        assert con.execute("SELECT COUNT(*) FROM offers").fetchone()[0] == 1
+    finally:
+        con.close()
+
+
+# ============================================================ Q5: brama SSRF na prawdziwych URL-ach
+@pytest.mark.parametrize("url", [
+    "http://127.0.0.1:8000/api/stats",
+    "http://169.254.169.254/latest/meta-data/",
+    "http://localhost:8000/",
+    "file:///etc/passwd",
+    "javascript:alert(1)",
+    "http://example.com:22/",
+])
+def test_Q5_podejrzane_cele_zablokowane(url):
+    from cleaner import is_url_allowed
+    ok, _ = is_url_allowed(url)
+    assert ok is False, f"przepuszczone: {url}"
+
+
+def test_Q5_zwykly_sklep_przepuszczony():
+    from cleaner import is_url_allowed
+    ok, _ = is_url_allowed("https://store.steampowered.com/app/70", check_dns=False)
+    assert ok is True
+
+
+# ============================================================ Q6: helper listing
+def test_Q6_listed_as_free_to_deklaracja_nie_pomiar():
+    from scrapers.base import BaseScraper
+
+    class S(BaseScraper):
+        async def scrape(self):
+            return []
+
+    h = S(name="T", base_url="https://x.example").listed_as_free("/free")
+    assert h["price"] == ""
+    assert h["price_claim"] == "Free"
+    assert h["price_source"].startswith("listing:https://x.example")
+
+
+# ============================================================ Q7: migracja idempotentna
+def test_Q7_migracja_dodaje_kolumny_i_da_sie_powtorzyc(tmp_path):
+    import migrate
+    db = tmp_path / "stara.db"
+    con = sqlite3.connect(str(db))
+    con.execute("CREATE TABLE offers (id INTEGER PRIMARY KEY, title TEXT, url TEXT)")
+    con.commit()
+    con.close()
+    assert migrate.main([str(db)]) == 0
+    con = sqlite3.connect(str(db))
+    try:
+        kol = {r[1] for r in con.execute("PRAGMA table_info(offers)")}
+        assert {"price_claim", "price_source", "price_checked"} <= kol
+        assert con.execute(
+            "SELECT name FROM sqlite_master WHERE name='price_history'").fetchone()
+    finally:
+        con.close()
+    assert migrate.main([str(db)]) == 0  # drugi raz też 0, bez wybuchu
+
+
+# ============================================================ Q8: martwe linki wewnętrzne
+_TLE = re.compile(r'href="(/[^"]*)"')
+_TRASY = re.compile(r'@app\.(?:get|post|delete|api_route)\("([^"]+)"')
+
+
+def _trasy_backendu():
+    from database import init_db  # noqa (import dla spójności ścieżek)
+    tekst = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
+    return set(_TRASY.findall(tekst))
+
+
+def _linki_wewnetrzne():
+    linki = set()
+    for p in [ROOT / "frontend" / "index.html",
+              ROOT / "frontend" / "offers.jsx",
+              *sorted((ROOT / "tools").glob("*.html"))]:
+        linki |= set(_TLE.findall(p.read_text(encoding="utf-8")))
+    return linki
+
+
+def test_Q8_kazdy_link_wewnetrzny_ma_trase():
+    import main
+    trasy = _trasy_backendu()
+    publiczne = set(getattr(main, "_PUBLIC_DATA", ()))
+    brak = []
+    for link in sorted(_linki_wewnetrzne()):
+        link = link.split("?", 1)[0].rstrip("?&") or "/"
+        if link in trasy:
+            continue
+        if link.startswith(("/api/", "/static/", "/tools/")):
+            continue
+        if link.startswith("/data/") and link.rsplit("/", 1)[-1] in publiczne:
+            continue
+        brak.append(link)
+    assert not brak, f"martwe linki bez trasy: {brak}"
+
+
+def test_Q8_celem_FileResponse_jest_prawdziwy_plik():
+    r = re.compile(r'(FRONTEND_DIR|TOOLS_DIR)\s*/\s*"([^"]+)"')
+    tekst = (ROOT / "backend" / "main.py").read_text(encoding="utf-8")
+    brak = []
+    for katalog, nazwa in r.findall(tekst):
+        base = ROOT / ("frontend" if katalog == "FRONTEND_DIR" else "tools")
+        if not (base / nazwa).exists():
+            brak.append(f"{katalog}/{nazwa}")
+    assert not brak, f"FileResponse w nieistniejący plik: {brak}"
+
+
+# ============================================================ Q9: offline (zero CDN) + Ruffle na miejscu
+def test_Q9_zaden_skrypt_ani_styl_z_cdn():
+    zle = []
+    for p in (ROOT / "frontend").glob("*.html"):
+        tekst = p.read_text(encoding="utf-8")
+        for tag in re.findall(r'<(?:script|link)[^>]+(?:src|href)="http[^"]*"[^>]*>', tekst):
+            zle.append(f"{p.name}: {tag[:80]}")
+    assert not zle, f"zasoby z CDN (apka ma być offline): {zle}"
+
+
+def test_Q9_ruffle_jest_lokalnie():
+    assert (ROOT / "frontend" / "vendor" / "ruffle" / "ruffle.js").exists()
+    assert list((ROOT / "frontend" / "vendor" / "ruffle").glob("*.wasm")), "brak .wasm Ruffle"
+    tekst = (ROOT / "tools" / "flash_player.html").read_text(encoding="utf-8")
+    zle = re.findall(r'<(?:script|link)[^>]+(?:src|href)="http[^"]*"[^>]*>', tekst)
+    assert not zle, f"player ciągnie z sieci: {zle}"
+    assert "/static/vendor/ruffle/ruffle.js" in tekst
+
+
+# ============================================================ Q11: bramka 18+ w API i RSS
+@pytest.fixture()
+def baza_z_doroslymi(tmp_path, monkeypatch):
+    import main
+    from database import init_db
+    fabryka = init_db(f"sqlite:///{tmp_path / 't.db'}")
+    monkeypatch.setattr(main, "SessionFactory", fabryka)
+    main.save_deals_to_db([_deal("https://a.example/czysta", title="Czysta Gra")])
+    main.save_deals_to_db([_deal("https://a.example/dorosla", title="Dorosla Gra",
+                                 is_adult=True)])
+    return main
+
+
+def test_Q11_api_domyslnie_milczy_o_18(baza_z_doroslymi):
+    import asyncio
+    res = asyncio.run(baza_z_doroslymi.get_offers())
+    tytuly = [o["title"] for o in res]
+    assert "Czysta Gra" in tytuly
+    assert "Dorosla Gra" not in tytuly
+
+
+def test_Q11_api_za_flaga_zwraca_18_i_da_sie_szukac(baza_z_doroslymi):
+    import asyncio
+    res = asyncio.run(baza_z_doroslymi.get_offers(nsfw=1))
+    assert "Dorosla Gra" in [o["title"] for o in res]
+    res = asyncio.run(baza_z_doroslymi.get_offers(search="Dorosla"))
+    assert res == [], "szukajka bez flagi nie śmie znaleźć 18+"
+    res = asyncio.run(baza_z_doroslymi.get_offers(search="Dorosla", nsfw=1))
+    assert [o["title"] for o in res] == ["Dorosla Gra"]
+
+
+def test_Q11_rss_nigdy_nie_niesie_18(baza_z_doroslymi):
+    import asyncio
+    res = asyncio.run(baza_z_doroslymi.rss_feed())
+    body = res.body.decode("utf-8")
+    assert "Czysta Gra" in body
+    assert "Dorosla Gra" not in body
+
+
+# ============================================================ Q12: Łowcy Gier na sztucznym RSS
+_RSS = """<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
+<item><title>Odbierz Bad Cheese za darmo na PC!</title>
+<link>https://lowcygier.pl/darmowe/bad-cheese/</link>
+<description>Agent A oraz Bad Cheese za darmo do 22 października.</description></item>
+<item><title>Wyprzedaż weekendowa na Steam</title>
+<link>https://lowcygier.pl/promocje-cyfrowe/wyprzedaz/</link>
+<description>Tanie gry na weekend.</description></item>
+<item><title>Sprawdź demo Metaphor za darmo</title>
+<link>https://lowcygier.pl/darmowe/metaphor-demo/</link>
+<description>Wersja demonstracyjna do sprawdzenia.</description></item>
+<item><title>Gra Conarium za darmo w Prime Gaming</title>
+<link>https://lowcygier.pl/darmowe/conarium-prime/</link>
+<description>Odbierz z subskrypcją Prime Gaming.</description></item>
+<item><title>Mafia III za darmo dla posiadaczy PS4</title>
+<link>https://lowcygier.pl/darmowe/mafia-iii/</link>
+<description>Jeśli posiadacie starsze wydanie gry, upgrade za darmo.</description></item>
+<item><title>Dodatek do Voidtrain za darmo</title>
+<link>https://lowcygier.pl/darmowe/voidtrain-dlc/</link>
+<description>Darmowe DLC Big Catch.</description></item>
+</channel></rss>"""
+
+
+def test_Q12_lowcygier_bierze_tylko_darmowe_keepers():
+    import asyncio
+    from scrapers.lowcygier import LowcyGierScraper
+
+    class _Resp:
+        status = 200
+
+        def __init__(self, t):
+            self._t = t
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def text(self):
+            return self._t
+
+    class _Sess:
+        def get(self, *a, **k):
+            return _Resp(_RSS)
+
+    deals = asyncio.run(LowcyGierScraper(session=_Sess()).scrape())
+    po_tytule = {d.title: d for d in deals}
+    assert any("Bad Cheese" in t for t in po_tytule), po_tytule.keys()
+    assert not any("Weekendowa" in t or "Metaphor" in t or "Voidtrain" in t
+                   for t in po_tytule), po_tytule.keys()
+    prime = next(d for t, d in po_tytule.items() if "Conarium" in t)
+    assert prime.requires_login is True
+    mafia = next(d for t, d in po_tytule.items() if "Mafia" in t)
+    assert mafia.requires_login is True
+    for d in deals:
+        assert d.price_source.startswith("listing:https://lowcygier.pl")
+        assert d.price == ""
+
+
+# ============================================================ Q10: punktacja JS (regresje z komentarzy w kodzie)
+_NODE_PROG = """
+const fs = require("fs");
+let src = fs.readFileSync("tools/emulator-db.js", "utf8");
+src += ";globalThis.__T={getGPUScore,scoreEmulator,EMULATOR_DB};";
+eval(src);
+const T = globalThis.__T;
+const as = (v, exp, msg) => {
+  if (v !== exp) { console.error("FAIL " + msg + ": " + v + " != " + exp); process.exitCode = 1; }
+};
+as(T.getGPUScore("Intel(R) UHD Graphics 770"), 22, "uhd770-nie-jako-gtx770");
+as(T.getGPUScore("NVIDIA GeForce RTX 3050 Laptop GPU"), 48, "rtx3050laptop");
+as(T.getGPUScore("Intel(R) Arc(TM) A770 Graphics"), 60, "arca770");
+as(T.getGPUScore("FooBar Mystery 123"), 5, "nieznane-gpu");
+const noGL = {gpu:{score:0},cpu:{cores:8},ram:{gb:16},vulkan:{supported:true}};
+if (T.scoreEmulator(T.EMULATOR_DB.nes, noGL) > 20) {
+  console.error("FAIL brak-webgl-nes-powyzej-20"); process.exitCode = 1;
+}
+const over = {gpuScore:85,cpuCores:16,ramGB:32,vulkanSupported:true};
+if (T.scoreEmulator(T.EMULATOR_DB.ps2, over) < 75) {
+  console.error("FAIL overkill-ps2-ponizej-75"); process.exitCode = 1;
+}
+const b = {gpu:{score:10},cpu:{cores:4},ram:{gb:1},vulkan:{supported:false}};
+const u = {gpu:{score:10},cpu:{cores:4},ram:{gb:0},vulkan:{supported:false}};
+as(T.scoreEmulator(T.EMULATOR_DB.nes, u), T.scoreEmulator(T.EMULATOR_DB.nes, b), "ram-unknown-neutralny");
+console.log("JS-OK");
+"""
+
+
+def test_Q10_js_punktacja_bez_historycznych_bledow():
+    if shutil.which("node") is None:
+        pytest.skip("brak node")
+    r = subprocess.run(["node", "-e", _NODE_PROG], cwd=str(ROOT),
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"node FAIL:\n{r.stdout}\n{r.stderr}"
+    assert "JS-OK" in r.stdout

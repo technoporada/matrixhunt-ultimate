@@ -32,6 +32,7 @@ from scrapers.humble import HumbleScraper
 from scrapers.gamejolt import GameJoltScraper
 from scrapers.giveawayradar import GiveawayRadarScraper
 from scrapers.reddit import RedditScraper
+from scrapers.lowcygier import LowcyGierScraper
 
 BASE_DIR = Path(__file__).parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
@@ -204,7 +205,7 @@ SessionFactory = init_db(DB_PATH)
 
 SCRAPER_CLASSES = [
     GamerpowerScraper, EpicScraper, SteamScraper, GOGScraper,
-    IndieGalaScraper, RedditScraper,
+    IndieGalaScraper, RedditScraper, LowcyGierScraper,
 ]
 # Every scraper file is present and imported. The ones below are opt-in
 # because they returned 0 or timed out, and their hanging timeouts dominated
@@ -337,6 +338,24 @@ def _apply_price(offer, deal):
     return True
 
 
+# Linki do plików wykonywalnych i archiwów nigdy nie są ofertami ze sklepu,
+# tylko śmieciem albo wektorem malwaru (szczególnie z Reddita, gdzie postuje
+# każdy). Testy D4/D5 pilnowały tego na gotowej bazie, czyli na gapę —
+# ta zapora stoi na wejściu i taki URL w ogóle nie dociera do INSERT.
+_UNSAFE_FILE_EXT = (".exe", ".msi", ".bat", ".cmd", ".sh", ".scr", ".com",
+                    ".pif", ".jar", ".zip", ".rar", ".7z", ".tar", ".gz")
+
+
+def _is_unsafe_file_url(url):
+    """True, gdy URL wskazuje wprost plik wykonywalny / archiwum."""
+    try:
+        from urllib.parse import urlsplit
+        path = urlsplit(url).path.lower()
+    except Exception:
+        return True
+    return path.endswith(_UNSAFE_FILE_EXT)
+
+
 def save_deals_to_db(deals):
     session = SessionFactory()
     new_count = 0
@@ -363,6 +382,8 @@ def save_deals_to_db(deals):
             if not deal.url.lower().startswith(("http://", "https://")):
                 continue
             if not urlparse(deal.url).hostname:
+                continue
+            if _is_unsafe_file_url(deal.url):
                 continue
             seen.add(deal.url)
 
@@ -437,13 +458,20 @@ MAX_OFFERS_LIMIT = 1000
 
 
 @app.get("/api/offers")
-async def get_offers(source: str = None, search: str = None, limit: int = 100):
+async def get_offers(source: str = None, search: str = None, limit: int = 100,
+                     nsfw: int = 0):
     # Unbounded limit meant ?limit=1000000000 pulled the whole table into a
     # JSON list; filterlog and db_rows already clamp, this one did not.
     limit = max(1, min(int(limit), MAX_OFFERS_LIMIT))
     session = SessionFactory()
     try:
         query = session.query(Offer).filter(Offer.is_active == True)
+        if not int(nsfw or 0):
+            # Treści 18+ tylko na wyraźne żądanie (?nsfw=1 po bramce wieku
+            # w UI). Default milczy, żeby przypadkowy rzut oka na API/RSS
+            # nie pokazywał dorosłych tytułów. isnot(True) łapie też NULL
+            # ze starych wierszy sprzed kolumny.
+            query = query.filter(Offer.is_adult.isnot(True))
         if source:
             query = query.filter(Offer.source == source)
         if search:
@@ -1174,7 +1202,10 @@ async def steam_logout(request: Request):
 async def rss_feed():
     session = SessionFactory()
     try:
-        offers = session.query(Offer).filter(Offer.is_active == True).order_by(Offer.created_at.desc()).limit(50).all()
+        # RSS nie ma bramki wieku, więc 18+ nigdy tu nie trafia.
+        offers = session.query(Offer).filter(Offer.is_active == True,
+                                             Offer.is_adult.isnot(True)
+                                             ).order_by(Offer.created_at.desc()).limit(50).all()
         # Titles/URLs come from third-party markup. Without escaping, a title
         # like "</title></item><item><title>x" forges feed entries and a
         # "<script>" title lands raw in reader DOMs (confirmed live).

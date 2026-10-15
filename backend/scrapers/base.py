@@ -169,7 +169,6 @@ class Deal:
     price: str = ""
     price_claim: str = None
     price_source: str = None
-    price: str = "Free"
     original_price: str = ""
     category: str = "games"
     source: str = ""
