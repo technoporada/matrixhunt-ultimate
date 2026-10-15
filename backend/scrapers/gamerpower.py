@@ -20,7 +20,6 @@ class GamerpowerScraper(BaseScraper):
                             title=self.clean_title(title),
                             url=item.get("open_giveaway_url", ""),
                             **self.listed_as_free("/api/giveaways"),
-                            **self.listed_as_free(),
                             original_price=item.get("worth", ""),
                             category="games",
                             source="GamerPower",

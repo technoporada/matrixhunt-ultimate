@@ -28,7 +28,6 @@ class ItchScraper(BaseScraper):
                                 title=self.clean_title(title),
                                 url=href,
                                 **self.listed_as_free("/games/free"),
-                                **self.listed_as_free(),
                                 category="games",
                                 source="Itch.io",
                                 requires_login=False,

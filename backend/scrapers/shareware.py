@@ -28,7 +28,6 @@ class SharewareScraper(BaseScraper):
                                 title=self.clean_title(title),
                                 url=href,
                                 **self.listed_as_free("/free"),
-                                **self.listed_as_free(),
                                 category="software",
                                 source="SharewareOnSale",
                             ))

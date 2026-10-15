@@ -30,7 +30,6 @@ class HumbleScraper(BaseScraper):
                                 title=self.clean_title(title),
                                 url=href,
                                 **self.listed_as_free("/free"),
-                                **self.listed_as_free(),
                                 category="games",
                                 source="Humble Bundle",
                                 requires_login=True,

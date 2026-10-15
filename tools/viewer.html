@@ -172,6 +172,12 @@
             <button id="priv-forget-all" type="button">FORGET ALL</button>
             <span class="hint">One isolated cookie jar per site. Forgetting = logout there.</span>
         </div>
+        <div class="priv-row">
+            <span>Tryb ulotny: <b id="priv-eph">OFF</b></span>
+            <button id="priv-eph-btn" type="button">TURN ON</button>
+            <button id="priv-eph-forget" type="button">WYCZYŚĆ ULOTNE</button>
+            <span class="hint">Logowanie bez śladu na dysku: ciasteczka tylko w RAM (30 min bezczynności albo restart je kasuje). Hasła i tak nigdy nie są zapisywane.</span>
+        </div>
         <div class="priv-row vpns">
             <span>Trusted free VPNs (outside this app, for all traffic):</span>
             <a data-direct href="https://protonvpn.com/free-vpn" target="_blank" rel="noopener">Proton VPN Free ↗</a>
@@ -251,7 +257,7 @@
                 srcEl.textContent = (window.mhLang ? window.mhLang.t('viewer.cleaned') : 'CLEANED') + ' :: ' + host;
                 badge.textContent = window.mhLang ? window.mhLang.t('viewer.antysyf') : 'ANTYSYF ON';
                 orig.href = url;
-                frame.src = '/api/clean?url=' + encodeURIComponent(url);
+                frame.src = cleanUrl(url);
                 frame.addEventListener('load', function () {
                     // The proxy answers JSON errors with 4xx/5xx; an empty
                     // document here means the clean failed - offer the raw link.
@@ -266,7 +272,37 @@
                     } catch (e) { /* cross-origin - content loaded fine */ }
                 });
             } else {
-                fail((window.mhLang ? window.mhLang.t('viewer.nopage') : 'NO PAGE: use /view?page=/wiki or /view?url=https://…'));
+                // Goły /view to nie błąd — to strona startowa: wklej URL
+                // albo skocz do sklepowego logowania. (Kiedyś był tu tylko
+                // komunikat NO PAGE i wyglądało na zepsute.)
+                srcEl.textContent = window.mhLang ? window.mhLang.t('viewer.start') : 'VIEWER';
+                frame.style.display = 'none';
+                errBox.style.display = 'block';
+                var chores = '';
+                try {
+                    chores = Object.keys(PAGES).map(function (p) {
+                        return '<a href="/view?page=' + p + '">' + PAGES[p] + '</a>';
+                    }).join(' · ');
+                } catch (e) { chores = ''; }
+                errBox.innerHTML =
+                    '<div style="text-align:center;padding:20px;">' +
+                    '<div style="font-size:1.1em;letter-spacing:3px;margin-bottom:12px;">' +
+                    (window.mhLang ? window.mhLang.t('viewer.paste') : 'PASTE A STORE URL') + '</div>' +
+                    '<input id="viewer-start-url" type="text" placeholder="https://…" ' +
+                    'style="width:min(480px,90%);padding:10px;background:#000;color:var(--green);' +
+                    'border:1px solid var(--green);font-family:inherit;"> ' +
+                    '<button id="viewer-start-go" type="button" style="padding:10px 18px;">GO »</button>' +
+                    '<div class="hint" style="margin-top:12px;">' + chores + '</div></div>';
+                var goBtn = document.getElementById('viewer-start-go');
+                var goInput = document.getElementById('viewer-start-url');
+                var goFn = function () {
+                    var u = (goInput && goInput.value || '').trim();
+                    if (/^https?:\/\//i.test(u)) location.search = '?url=' + encodeURIComponent(u);
+                };
+                if (goBtn) goBtn.addEventListener('click', goFn);
+                if (goInput) goInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') goFn();
+                });
             }
 
             // ---- privacy panel ----
@@ -275,6 +311,20 @@
             var privTorReach = document.getElementById('priv-tor-reach');
             var privUpstream = document.getElementById('priv-upstream');
             var privSessions = document.getElementById('priv-sessions');
+
+            // Tryb ulotny: ciasteczka tylko w RAM serwera, nigdy na dysk.
+            // Trzymane w sessionStorage, więc umiera razem z kartą.
+            var ephemeral = false;
+            try { ephemeral = sessionStorage.getItem('mh_eph') === '1'; } catch (e) {}
+            function cleanUrl(u) {
+                return '/api/clean?url=' + encodeURIComponent(u) + (ephemeral ? '&ephemeral=1' : '');
+            }
+            function paintEph() {
+                var b = document.getElementById('priv-eph');
+                var t = document.getElementById('priv-eph-btn');
+                if (b) b.textContent = ephemeral ? 'ON (RAM tylko)' : 'OFF';
+                if (t) t.textContent = ephemeral ? 'TURN OFF' : 'TURN ON';
+            }
 
             function setSetting(key, value, onDone) {
                 fetch('/api/settings', {
@@ -309,8 +359,22 @@
                         Object.keys(all).forEach(function (k) {
                             if (host.indexOf(k) !== -1 || k.indexOf(host) !== -1) hit = all[k];
                         });
-                        privSessions.textContent = hit
+                        var txt = hit
                             ? host + ' (' + hit.cookies + ' cookies)' : 'none for this site';
+                        // Dopnij sesje ulotne (RAM) — to osobna półka.
+                        fetch('/api/sessions-ephemeral').then(function (r) {
+                            return r.json();
+                        }).then(function (d) {
+                            var eph = (d && d.ephemeral) || {};
+                            var ehit = null;
+                            Object.keys(eph).forEach(function (k) {
+                                if (host.indexOf(k) !== -1 || k.indexOf(host) !== -1) ehit = eph[k];
+                            });
+                            if (ehit) txt += ' + ' + ehit.cookies + ' ulotne (RAM)';
+                            privSessions.textContent = txt;
+                        }).catch(function () {
+                            privSessions.textContent = txt;
+                        });
                     }).catch(function () {});
                 } else {
                     privSessions.textContent = 'n/a (internal page)';
@@ -348,6 +412,22 @@
             document.getElementById('priv-forget-all').addEventListener('click', function () {
                 if (!confirm('Forget ALL site sessions?')) return;
                 fetch('/api/sessions', { method: 'DELETE' }).then(function () { refreshSettings(); });
+            });
+            paintEph();
+            document.getElementById('priv-eph-btn').addEventListener('click', function () {
+                ephemeral = !ephemeral;
+                try {
+                    if (ephemeral) sessionStorage.setItem('mh_eph', '1');
+                    else sessionStorage.removeItem('mh_eph');
+                } catch (e) {}
+                paintEph();
+                // Przeładuj bieżącą stronę w nowym trybie.
+                if (url && /^https?:\/\//i.test(url)) frame.src = cleanUrl(url);
+                refreshSettings();
+            });
+            document.getElementById('priv-eph-forget').addEventListener('click', function () {
+                fetch('/api/sessions-ephemeral', { method: 'DELETE' })
+                    .then(function () { refreshSettings(); });
             });
             refreshSettings();
 

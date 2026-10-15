@@ -352,6 +352,9 @@ _RSS = """<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
 <item><title>Dodatek do Voidtrain za darmo</title>
 <link>https://lowcygier.pl/darmowe/voidtrain-dlc/</link>
 <description>Darmowe DLC Big Catch.</description></item>
+<item><title>[PRICEBUG?] Call of Duty za darmo w PS Store</title>
+<link>https://lowcygier.pl/darmowe/cod-pricebug/</link>
+<description>COD za darmo, pospiesz się.</description></item>
 </channel></rss>"""
 
 
@@ -390,6 +393,98 @@ def test_Q12_lowcygier_bierze_tylko_darmowe_keepers():
     for d in deals:
         assert d.price_source.startswith("listing:https://lowcygier.pl")
         assert d.price == ""
+        assert not d.title.startswith(("[", "(")), f"tag redakcyjny w tytule: {d.title}"
+
+
+# ============================================================ Q13: Deal() bez kolizji kwargs
+def test_Q13_zaden_deal_nie_sypie_TypeError():
+    """Regresja: 9 scraperów wołało Deal(**a, **b) z tymi samymi kluczami
+    (zdublowana linia **listed_as_free()). Python rzuca wtedy
+    "got multiple values for keyword argument 'price'" i scraper zwraca 0.
+    Statycznie: maksymalnie jedno ** na wywołanie i zero jawnych
+    price/price_claim/price_source obok niego.
+    """
+    import ast
+    zle = []
+    for p in sorted((ROOT / "backend" / "scrapers").glob("*.py")):
+        if p.name in ("__init__.py", "base.py"):
+            continue
+        tree = ast.parse(p.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "Deal"):
+                continue
+            stars = [k for k in node.keywords if k.arg is None]
+            jawne = {k.arg for k in node.keywords if k.arg}
+            if len(stars) > 1:
+                zle.append(f"{p.name}:{node.lineno} dwa ** w jednym Deal()")
+            if stars and jawne & {"price", "price_claim", "price_source"}:
+                zle.append(f"{p.name}:{node.lineno} jawna cena + **helper")
+    assert not zle, zle
+
+
+# ============================================================ Q14: frontendy renderują (biała strona)
+def test_Q14_dashboard_i_offers_renderuja_bez_wyjatku():
+    """Regresja: showToast w deps przed deklaracją (TDZ) kładł CAŁY render
+    — obie strony wstawały białe mimo 200 i danych w API. Smoke w node ze
+    stubami hooka leci ścieżkę App() i rzuca przy pierwszym ReferenceError.
+    """
+    if shutil.which("node") is None:
+        pytest.skip("brak node")
+    r = subprocess.run(["node", "tools/smoke_render.js"], cwd=str(ROOT),
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, f"smoke FAIL:\n{r.stdout}\n{r.stderr}"
+    assert "OFFERS-RENDER-OK" in r.stdout and "INDEX-RENDER-OK" in r.stdout
+    assert "VIEWER-RENDER-OK" in r.stdout
+
+
+# ============================================================ Q15: tryb ulotny nie tyka dysku
+def _ulotna_sesja_z_ciastkiem(host="sklep.example", nazwa="sid", wartosc="abc"):
+    import requests
+    s = requests.Session()
+    s.cookies.set(nazwa, wartosc, domain=host, path="/")
+    return s
+
+
+def test_Q15_ulotne_zyja_w_ram_a_dysk_czysty(tmp_path, monkeypatch):
+    import sessions
+    monkeypatch.setattr(sessions, "JAR_DIR", tmp_path / "cookies")
+    monkeypatch.setattr(sessions, "EPHEMERAL_TTL", 3600)
+    sessions.forget_ephemeral_all()
+    sessions.save_ephemeral("sklep.example",
+                            _ulotna_sesja_z_ciastkiem())
+    assert sessions.ephemeral_state("sklep.example")["has_session"] is True
+    assert list((tmp_path / "cookies").glob("*")) == [] if (tmp_path / "cookies").exists() else True
+    # ...a zwykły słoik dyskowy o tej stronie nic nie wie.
+    assert sessions.session_state("sklep.example")["has_session"] is False
+
+
+def test_Q15_ulotne_gina_po_ttl_i_na_zadanie(monkeypatch):
+    import time
+    import sessions
+    sessions.forget_ephemeral_all()
+    sessions.save_ephemeral("a.example", _ulotna_sesja_z_ciastkiem("a.example"))
+    sessions.save_ephemeral("b.example", _ulotna_sesja_z_ciastkiem("b.example"))
+    assert sessions.forget_ephemeral("a.example") is True
+    assert sessions.forget_ephemeral("a.example") is False
+    assert sessions.list_ephemeral().keys() == {"b.example"}
+    sessions._sweep_ephemeral(now=time.time() + sessions.EPHEMERAL_TTL + 1)
+    assert sessions.list_ephemeral() == {}
+    sessions.save_ephemeral("c.example", _ulotna_sesja_z_ciastkiem("c.example"))
+    assert sessions.forget_ephemeral_all() == 1
+    assert sessions.list_ephemeral() == {}
+
+
+def test_Q15_ulotne_doklejaja_sie_do_sesji_bez_dysku(tmp_path, monkeypatch):
+    import requests
+    import sessions
+    monkeypatch.setattr(sessions, "JAR_DIR", tmp_path / "cookies")
+    sessions.forget_ephemeral_all()
+    sessions.save_ephemeral("sklep.example",
+                            _ulotna_sesja_z_ciastkiem(wartosc="sekret999"))
+    s2 = requests.Session()
+    sessions.attach_ephemeral("sklep.example", s2)
+    assert s2.cookies.get("sid", domain="sklep.example") == "sekret999"
+    assert not (tmp_path / "cookies").exists()
 
 
 # ============================================================ Q10: punktacja JS (regresje z komentarzy w kodzie)

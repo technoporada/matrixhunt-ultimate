@@ -11,6 +11,8 @@ responses, never form fields.
 """
 import json
 import re
+import threading
+import time
 from pathlib import Path
 from http.cookiejar import MozillaCookieJar
 
@@ -187,3 +189,99 @@ def persist_from_requests(host, req_session):
     except Exception:
         pass
     return jar
+
+
+# ================================================================ TRYB ULOTNY
+# Logowanie bez śladu na dysku: słoik żyje tylko w RAM procesu, z limitem
+# bezczynności. Restart serwera, przycisk "wyczyść" albo TTL kasują wszystko.
+# Rozdzielone od słoików dyskowych celowo — tryb ulotny nigdy nie czyta ani
+# nie pisze plików, więc nie da się go pomylić ze "zapamiętaną" sesją.
+EPHEMERAL_TTL = 30 * 60  # sekund bezczynności, potem wyparowuje z RAM
+
+_EPHEMERAL = {}
+_EPH_LOCK = threading.Lock()
+
+
+def _eph_key(host):
+    return (host or "").lower()
+
+
+def _sweep_ephemeral(now=None):
+    now = time.time() if now is None else now
+    with _EPH_LOCK:
+        for host in [h for h, e in _EPHEMERAL.items()
+                     if now - e["last"] > EPHEMERAL_TTL]:
+            del _EPHEMERAL[host]
+
+
+def load_ephemeral(host):
+    """Słoik z RAM (pusty, gdy wygasł lub go nie było). Nigdy nie tyka dysku."""
+    _sweep_ephemeral()
+    key = _eph_key(host)
+    with _EPH_LOCK:
+        entry = _EPHEMERAL.get(key)
+        if entry is None:
+            entry = {"jar": MozillaCookieJar(), "last": time.time()}
+            _EPHEMERAL[key] = entry
+        else:
+            entry["last"] = time.time()
+        return entry["jar"]
+
+
+def save_ephemeral(host, req_session):
+    """Scal ciasteczka do słoika w RAM. Zwraca słoik; dysk nietknięty."""
+    jar = load_ephemeral(host)
+    try:
+        for cookie in req_session.cookies:
+            try:
+                jar.set_cookie(cookie)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return jar
+
+
+def ephemeral_state(host):
+    """Jak session_state, ale z RAM. Ten sam kształt, inna półka."""
+    jar = load_ephemeral(host)
+    cookies = [c for c in jar]
+    return {"host": host, "cookies": len(cookies),
+            "has_session": len(cookies) > 0,
+            "names": sorted({c.name for c in cookies})[:10],
+            "ephemeral": True}
+
+
+def list_ephemeral():
+    _sweep_ephemeral()
+    with _EPH_LOCK:
+        return {h: {"cookies": len([c for c in e["jar"]]),
+                    "ephemeral": True}
+                for h, e in _EPHEMERAL.items()
+                if [c for c in e["jar"]]}
+
+
+def forget_ephemeral(host):
+    with _EPH_LOCK:
+        return _EPHEMERAL.pop(_eph_key(host), None) is not None
+
+
+def forget_ephemeral_all():
+    with _EPH_LOCK:
+        n = len(_EPHEMERAL)
+        _EPHEMERAL.clear()
+        return n
+
+
+def attach_ephemeral(host, req_session):
+    """Jak attach_to_requests, ale ze słoika w RAM. Dysk nietknięty."""
+    for cookie in load_ephemeral(host):
+        try:
+            req_session.cookies.set_cookie(cookie)
+        except Exception:
+            continue
+
+
+def persist_ephemeral(host, req_session):
+    """Jak persist_from_requests, ale do RAM. Dysk nietknięty."""
+    return save_ephemeral(host, req_session)

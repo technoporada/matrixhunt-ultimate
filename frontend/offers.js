@@ -147,6 +147,12 @@ function App() {
     }
   });
   const [toast, setToast] = useState(null);
+  // MUSI stać przed każdym useCallback, który wymienia showToast
+  // w deps — inaczej TDZ i cała strona pada na biało przy starcie.
+  const showToast = useCallback(msg => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [proxyOn, setProxyOn] = useState(true);
   const [cveQ, setCveQ] = useState('');
@@ -253,10 +259,6 @@ function App() {
       setVulnInfo(lang === 'pl' ? 'FEED NIEUDANY' : 'FEED FAILED');
     }
   }, [cveQ, lang]);
-  const showToast = useCallback(msg => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2500);
-  }, []);
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {

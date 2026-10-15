@@ -19,6 +19,9 @@ RSS_URL = "https://lowcygier.pl/darmowe/feed/"
 _SKIP = _re.compile(
     r"\b(demo|dlc|dodatek|free play|trial|prolog|prologue)\b"
     r"|za darmo to uczciwa cena", _re.I)
+# Redakcyjne tagi na początku tytułu ([PRICEBUG?], [PREMIERA]) to nie część
+# nazwy gry — D3 (zero prefiksów) ma rację, że takich śmieci nie chce w bazie.
+_TAG = _re.compile(r"^\s*\[[^\]]{1,30}\]\s*")
 # Bariera przy odbiorze: subskrypcja albo posiadanie podstawki.
 # "posiada" bez końcowego \b, bo polskie końcówki (posiadacie/posiadaczy)
 # nie mają tam granicy słowa — a \b z przodu chroni przed śmieciem.
@@ -56,7 +59,7 @@ class LowcyGierScraper(BaseScraper):
                 if not self.is_safe_url(link):
                     continue
                 deals.append(Deal(
-                    title=self.clean_title(title),
+                    title=self.clean_title(_TAG.sub("", title)),
                     url=link,
                     **self.listed_as_free("/darmowe/"),
                     category="games",

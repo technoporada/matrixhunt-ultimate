@@ -606,7 +606,7 @@ async def web_manifest():
 
 
 @app.api_route("/api/clean", methods=["GET", "POST"])
-async def clean_proxy(url: str, request: Request):
+async def clean_proxy(url: str, request: Request, ephemeral: int = 0):
     """Fetch an external page, strip ads/trackers/scripts, return clean HTML.
 
     Separate cookie session per host: logins stay in backend/.cookies/ and
@@ -614,16 +614,19 @@ async def clean_proxy(url: str, request: Request):
     stored - only Set-Cookie responses land in the jar). Every hop (including
     redirects) passes the SSRF gate. Non-HTML answers 415 so the viewer can
     fall back to a direct link instead of framing a download.
+
+    ?ephemeral=1 to tryb ulotny: słoik żyje tylko w RAM (30 min bezczynności
+    albo restart/wyczyszczenie), dysk nietknięty. Do logowania "na raz".
     """
     import asyncio
     post_body = await request.body() if request.method == "POST" else None
     return await asyncio.to_thread(
         _clean_sync, url, request.method,
         {"content-type": request.headers.get("content-type", "")},
-        dict(request.query_params), post_body)
+        dict(request.query_params), post_body, bool(int(ephemeral or 0)))
 
 
-def _clean_sync(url, method, headers, query_params, post_body):
+def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
     import requests as _requests
     from fastapi.responses import JSONResponse
     from sessions import persist_from_requests, session_state, attach_to_requests
@@ -641,7 +644,8 @@ def _clean_sync(url, method, headers, query_params, post_body):
     else:
         # GET forms (search boxes) arrive with extra query params - merge
         # them into the target instead of dropping the user's input.
-        extra = [(k, v) for k, v in query_params.items() if k != "url"]
+        # "url" and "ephemeral" are ours, never the target's.
+        extra = [(k, v) for k, v in query_params.items() if k not in ("url", "ephemeral")]
         if extra:
             from urllib.parse import urlencode
             sep = "&" if "?" in target else "?"
@@ -665,7 +669,11 @@ def _clean_sync(url, method, headers, query_params, post_body):
         sess.proxies.update(proxies)
         sess.trust_env = False
         check_dns = False
-    attach_to_requests(host, sess)
+    if ephemeral:
+        from sessions import attach_ephemeral as _attach_eph
+        _attach_eph(host, sess)
+    else:
+        attach_to_requests(host, sess)
 
     current, cur_method, cur_body = target, method, body
     try:
@@ -721,7 +729,14 @@ def _clean_sync(url, method, headers, query_params, post_body):
             # the viewer promises, and "forget this site" then logged the
             # other site out too.
             final_host = urlparse(current).hostname or host
-            persist_from_requests(final_host, sess)
+            if ephemeral:
+                from sessions import persist_ephemeral as _persist_eph
+                from sessions import ephemeral_state as _eph_state
+                _persist_eph(final_host, sess)
+                state = _eph_state(final_host)
+            else:
+                persist_from_requests(final_host, sess)
+                state = session_state(final_host)
             from filterlists import get_engine, custom_engine, elog
             flt = {"engine": get_engine(),
                    "custom": custom_engine(settings.get("custom_rules", "")),
@@ -739,13 +754,13 @@ def _clean_sync(url, method, headers, query_params, post_body):
                      "rule": rule.raw[:160], "list": rule.list_id},
                     status_code=451)
             cleaned, removed, filtered = clean_html(r.text, current, flt=flt)
-            state = session_state(final_host)
             return HTMLResponse(
                 content=cleaned,
                 headers={"X-MH-Cleaned": str(removed), "X-MH-Source": current,
                          "X-MH-Filtered": str(filtered),
                          "X-MH-Host": final_host,
-                         "X-MH-Session": "active" if state["has_session"] else "none"},
+                         "X-MH-Session": "active" if state["has_session"] else "none",
+                         "X-MH-Ephemeral": "1" if ephemeral else "0"},
             )
         return JSONResponse({"error": "too many redirects"}, status_code=502)
     finally:
@@ -779,6 +794,29 @@ async def sessions_forget(host: str):
 async def sessions_forget_all():
     from sessions import forget_all
     return {"forgotten_sites": forget_all()}
+
+
+@app.get("/api/sessions-ephemeral")
+async def sessions_ephemeral_list():
+    """Sesje ulotne (RAM): co żyje w tej chwili. Liczniki, nie wartości."""
+    from sessions import list_ephemeral
+    return {"ephemeral": list_ephemeral()}
+
+
+@app.delete("/api/sessions-ephemeral")
+async def sessions_ephemeral_forget_all():
+    """Wyczyść WSZYSTKIE sesje ulotne z RAM. Dysk i tak jest nietknięty."""
+    from sessions import forget_ephemeral_all
+    return {"forgotten_ephemeral": forget_ephemeral_all()}
+
+
+@app.delete("/api/sessions-ephemeral/{host}")
+async def sessions_ephemeral_forget(host: str):
+    """Wyczyść ulotną sesję jednego hosta z RAM."""
+    from sessions import forget_ephemeral
+    if not re.fullmatch(r"[A-Za-z0-9.-]{1,100}", host):
+        raise HTTPException(status_code=400, detail="bad host")
+    return {"forgotten": forget_ephemeral(host.lower()), "host": host.lower()}
 
 
 @app.get("/api/filterlists")

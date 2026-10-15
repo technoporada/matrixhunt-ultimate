@@ -28,7 +28,6 @@ class IndieGalaScraper(BaseScraper):
                                 title=self.clean_title(title),
                                 url=href,
                                 **self.listed_as_free(),
-                                **self.listed_as_free(),
                                 category="games",
                                 source="IndieGala",
                                 requires_login=True,

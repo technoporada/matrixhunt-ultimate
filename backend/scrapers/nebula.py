@@ -25,7 +25,6 @@ class NebulaScraper(BaseScraper):
                             title=self.clean_title(title),
                             url=url,
                             **self.listed_as_free("/api/games/free"),
-                            **self.listed_as_free(),
                             category="games",
                             source="Nebula",
                             description=game.get("description", "")[:200],
