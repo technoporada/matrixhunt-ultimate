@@ -791,4 +791,30 @@ def test_Q15b_linkdoctor_mlode_domeny_i_pomocnicze(monkeypatch):
     assert d["verdict"] == "ostrzez" and any(r["code"] == "age" for r in d["reasons"]), d
 
 
+# ============================== Q16: obfuskacja javascript: w /api/clean (XSS)
+def test_Q16_clean_html_blokuje_obfuskowany_javascript():
+    """Przeglądarka zdejmuje tab/newline z URL-a, więc 'java\\tscript:' to
+    javascript:. Sanacja musi to zdjąć PRZED testem schematu - inaczej
+    /api/clean (same-origin) wykonuje skrypt w origin viewera."""
+    from cleaner import clean_html
+    for val in ["java\tscript:alert(1)", "java\nscript:alert(1)",
+                "java\rscript:alert(1)", "\x01javascript:alert(1)",
+                "&#106;avascript:alert(1)", "da\tta:text/html,x"]:
+        out, _, _ = clean_html(f'<a href="{val}">x</a>', "https://ex.com")
+        assert "href=" not in out, f"obfuskacja przeszła: {val!r} -> {out}"
+
+    out, _, _ = clean_html(
+        '<img srcset="java\tscript:alert(1) 1x, https://ex.com/a.png 2x">',
+        "https://ex.com")
+    assert "javascript:" not in out and "ex.com/a.png" in out, out
+
+    out, _, _ = clean_html('<div style="background:url(java\tscript:alert(1))">x</div>',
+                           "https://ex.com")
+    assert "javascript:" not in out, out
+
+    out, _, _ = clean_html('<a href="https://ex.com/gra">x</a>', "https://ex.com")
+    assert 'href="https://ex.com/gra"' in out, out
+
+
+
 

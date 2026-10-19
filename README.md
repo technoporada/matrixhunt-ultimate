@@ -97,7 +97,7 @@ zero pomiarów `api:*` poza scraperami API.
 |---|---|
 | CSRF / obce originy | token `X-MH-Token` + strażnik `_api_guard` (tylko loopback) |
 | SSRF przez proxy | bramka `is_url_allowed` na każdym hopy (bloki: intranet, metadata, `file:`, porty) |
-| XSS z obcych stron | sanacja HTML (`clean_html`), resourcy tylko z allowlist |
+| XSS z obcych stron | sanacja HTML (`clean_html`), resourcy tylko z allowlist; schematy (`javascript:`/`data:`) zdejmowane **po normalizacji** znaków sterujących (obfuskacja tab/newline) |
 | Polygloty w obrazkach | `validate_image` po magic bytes + `nosniff` |
 | Wrogie URL-e w bazie | tylko `http(s)` z hostem, zero plików `.exe/.zip/.rar` (zapora na wejściu) |
 | Prompt injection w cudzej treści | deterministyczny sanityzer `sanitize_text` (bidi, znaki sterujące/zerowej szerokości, tag-block) + `strip_hidden_html`; trafienia lądują w lokalnym **muzeum okazów** (`/muzeum`) |
@@ -137,7 +137,7 @@ bez CDN). Przycisk pauzy to pauza — Ruffle 0.7 nie daje API do głośności.
 ## 8. Testy
 
 ```bash
-.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 98 passed, 6 skipped
+.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 99 passed, 6 skipped
 node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez przeglądarki
 ./weryfikuj.sh                               # pełna weryfikacja z siecią (uwaga: start serwera = scrape, >120 s)
 ./sync.sh <katalog-docelowy>                # lustro do drugiej kopii (bez twardych ścieżek)
@@ -160,7 +160,7 @@ backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db /muzeum + skrypty (build, smoke, skan)
 data/               # retro.json, bookmarks.json, seed_offers.json (pusty)
-tests/              # 3 pliki, 104 testy (98 przechodzi, 6 pominiętych)
+tests/              # 3 pliki, 105 testów (99 przechodzi, 6 pominiętych)
 ```
 
 Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,

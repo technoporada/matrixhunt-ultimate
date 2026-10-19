@@ -10,6 +10,7 @@ touch raw ad-/tracker-laden markup. Two layers:
    tracking pixels and known ad/tracker domains; absolutises the rest.
 """
 import ipaddress
+import re
 import socket
 from urllib.parse import urlencode, urljoin, urlparse
 
@@ -45,6 +46,20 @@ STRIP_TAGS = {"script", "iframe", "object", "embed", "applet",
 # stores submitted values - only Set-Cookie responses land in the host jar.
 FORM_TAGS = {"form", "input", "button", "select", "textarea", "label",
              "option", "fieldset", "legend"}
+
+_DANGEROUS_SCHEMES = ("javascript:", "data:", "vbscript:")
+# Browsers strip ASCII tab/newline (and other C0 controls/space at the edges)
+# from a URL BEFORE reading its scheme, so "java\tscript:alert(1)" and
+# "\x01javascript:…" execute as javascript:. The old check compared the raw
+# value with startswith, so those survived and /api/clean is same-origin -
+# real script in the viewer. Normalise controls/space away BEFORE the test.
+_CTRL_SPACE = re.compile(r"[\x00-\x20\x7f]")
+
+
+def _dangerous_scheme(val):
+    if not isinstance(val, str):
+        return False
+    return _CTRL_SPACE.sub("", val).lower().startswith(_DANGEROUS_SCHEMES)
 
 
 def _is_global_ip(host):
@@ -167,7 +182,7 @@ def clean_html(html, base_url, flt=None):
                 rel = " ".join(tag.get("rel", [])).lower()
                 if tag.get("rel") == ["stylesheet"] or "stylesheet" in rel:
                     href = tag.get("href", "")
-                    if href and not href.lower().startswith(("javascript:", "data:")):
+                    if href and not _dangerous_scheme(href):
                         tag["href"] = urljoin(base_url, href)
                         # NO continue: stylesheets must still face the tracker
                         # heuristic and the filter engine. Skipping them meant
@@ -230,7 +245,8 @@ def clean_html(html, base_url, flt=None):
             if isinstance(val, str):
                 low = val.strip().lower()
                 if attr == "style":
-                    if "javascript:" in low.replace(" ", "") or "expression(" in low.replace(" ", ""):
+                    flat = _CTRL_SPACE.sub("", low)
+                    if "javascript:" in flat or "expression(" in flat:
                         del tag.attrs[attr]
                         removed += 1
                 elif attr == "srcset":
@@ -245,7 +261,7 @@ def clean_html(html, base_url, flt=None):
                         for part in cands:
                             bits = part.split(" ")
                             low_u = bits[0].strip().lower()
-                            if low_u.startswith(("javascript:", "data:", "vbscript:")):
+                            if _dangerous_scheme(bits[0]):
                                 continue
                             u = urljoin(base_url, bits[0])
                             desc = (" " + bits[1]) if len(bits) > 1 else ""
@@ -256,7 +272,7 @@ def clean_html(html, base_url, flt=None):
                         else:
                             del tag.attrs[attr]
                             removed += 1
-                elif low.startswith(("javascript:", "data:", "vbscript:")):
+                elif _dangerous_scheme(val):
                     del tag.attrs[attr]
                     removed += 1
                 elif attr in ("href", "src") and val and not low.startswith(("#", "mailto:")):
