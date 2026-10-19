@@ -701,6 +701,13 @@ async def specimens_list(limit: int = 200):
             "items": specimens.tail(limit=max(1, min(limit, 1000)))}
 
 
+@app.get("/api/linkcheck")
+async def linkcheck(url: str):
+    """Werdykt dla adresu (link doctor). Nie pobiera treści strony. Loopback."""
+    import linkdoctor
+    return await asyncio.to_thread(linkdoctor.check_url, url)
+
+
 @app.get("/sw.js")
 async def service_worker():
     # Served from the root so the worker gets "/" scope rather than "/static/".

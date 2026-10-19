@@ -743,3 +743,52 @@ def test_Q14_deal_sanityzuje_i_zapisuje_okaz(tmp_path, monkeypatch):
     assert "\u200b" not in d.title, "Deal przepuścił ukryty znak do bazy"
     assert any(r["source"] == "Test" for r in specimens.tail(5)), "brak okazu"
 
+
+# ==================================================== Q15: link doctor (offline)
+def test_Q15_linkdoctor_werdykty_bez_sieci(monkeypatch):
+    """Werdykt na zamockowanej sieci: .exe=ostrzez, czysty=ok, DoH=zablokuj, SSRF=zablokuj."""
+    import cleaner
+    import linkdoctor
+    monkeypatch.setattr(cleaner, "is_url_allowed", lambda u: (True, ""))
+    monkeypatch.setattr(linkdoctor, "_resolve_redirects",
+                        lambda u, max_hops=5: (u, 0, None))
+    monkeypatch.setattr(linkdoctor, "_doh_security", lambda h: False)
+    monkeypatch.setattr(linkdoctor, "_domain_age_days", lambda h: 4000)
+
+    d = linkdoctor.check_url("https://example.com/setup.exe")
+    assert d["verdict"] == "ostrzez", d
+    assert any(r["code"] == "ext" for r in d["reasons"]), d
+
+    d2 = linkdoctor.check_url("https://example.com/game")
+    assert d2["verdict"] == "ok", d2
+
+    monkeypatch.setattr(linkdoctor, "_doh_security", lambda h: True)
+    d3 = linkdoctor.check_url("https://evil.test/game")
+    assert d3["verdict"] == "zablokuj", d3
+
+    monkeypatch.setattr(cleaner, "is_url_allowed", lambda u: (False, "prywatny zakres"))
+    d4 = linkdoctor.check_url("http://127.0.0.1/x")
+    assert d4["verdict"] == "zablokuj" and any(r["code"] == "ssrf" for r in d4["reasons"]), d4
+    assert linkdoctor.check_url("nie-adres")["verdict"] == "zablokuj"
+
+
+def test_Q15b_linkdoctor_mlode_domeny_i_pomocnicze(monkeypatch):
+    import cleaner
+    import linkdoctor
+    monkeypatch.setattr(cleaner, "is_url_allowed", lambda u: (True, ""))
+    monkeypatch.setattr(linkdoctor, "_resolve_redirects",
+                        lambda u, max_hops=5: (u, 0, None))
+    monkeypatch.setattr(linkdoctor, "_doh_security", lambda h: False)
+
+    assert linkdoctor._dangerous_ext("https://x.com/a/b.exe") == ".exe"
+    assert linkdoctor._dangerous_ext("https://x.com/game") is None
+    assert linkdoctor.is_shortener("bit.ly") and not linkdoctor.is_shortener("steam.com")
+    assert linkdoctor._idn_flags("xn--pypal-4ve.com")
+    assert linkdoctor._idn_flags("steam.com") is None
+
+    monkeypatch.setattr(linkdoctor, "_domain_age_days", lambda h: 3)
+    d = linkdoctor.check_url("https://swiezy.example.com/g")
+    assert d["verdict"] == "ostrzez" and any(r["code"] == "age" for r in d["reasons"]), d
+
+
+

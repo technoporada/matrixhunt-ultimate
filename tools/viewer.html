@@ -290,6 +290,31 @@
                     orig.href = su;
                     frame.src = cleanUrl(su);
                 }
+                // --- link doctor: werdykt, bez pobierania treści strony ---
+                try {
+                    var banner = document.getElementById('ld-verdict');
+                    if (!banner) {
+                        banner = document.createElement('div');
+                        banner.id = 'ld-verdict';
+                        banner.style.cssText = 'padding:6px 10px;font-size:0.8em;border-bottom:1px solid var(--green);';
+                        frame.parentNode.insertBefore(banner, frame);
+                    }
+                    banner.style.color = 'var(--green)';
+                    banner.textContent = 'LINK DOCTOR: sprawdzam…';
+                    if (su) fetch('/api/linkcheck?url=' + encodeURIComponent(su), { cache: 'no-store' })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            var label = d.verdict === 'zablokuj' ? 'ZABLOKUJ'
+                                      : d.verdict === 'ostrzez' ? 'OSTRZEŻENIE'
+                                      : d.verdict === 'nieznany' ? 'NIEZNANE' : 'OK';
+                            banner.style.color = d.verdict === 'zablokuj' ? '#f66'
+                                              : d.verdict === 'ostrzez' ? '#fc0' : 'var(--green)';
+                            var why = (d.reasons || []).map(function (x) { return x.text; }).join(' · ');
+                            // textContent, nie innerHTML: powody mogą pochodzić z sieci.
+                            banner.textContent = 'LINK DOCTOR: ' + label + (why ? ' — ' + why : '');
+                        })
+                        .catch(function () { banner.textContent = 'LINK DOCTOR: nie udało się sprawdzić'; });
+                } catch (e) {}
                 frame.addEventListener('load', function () {
                     // The proxy answers JSON errors with 4xx/5xx; an empty
                     // document here means the clean failed - offer the raw link.

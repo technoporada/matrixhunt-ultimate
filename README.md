@@ -101,6 +101,7 @@ zero pomiarów `api:*` poza scraperami API.
 | Polygloty w obrazkach | `validate_image` po magic bytes + `nosniff` |
 | Wrogie URL-e w bazie | tylko `http(s)` z hostem, zero plików `.exe/.zip/.rar` (zapora na wejściu) |
 | Prompt injection w cudzej treści | deterministyczny sanityzer `sanitize_text` (bidi, znaki sterujące/zerowej szerokości, tag-block) + `strip_hidden_html`; trafienia lądują w lokalnym **muzeum okazów** (`/muzeum`) |
+| Krótkie/podejrzane linki | **link doctor** (`/api/linkcheck`): rozwija skracacze (bramka SSRF na każdym hopie), pyta Cloudflare security DNS i wiek domeny (RDAP), flaguje `.exe/.sh` i IDN — werdykt ok/ostrzeż/zablokuj, **nie pobiera treści** strony |
 | Sekrety na dysku | vault Fernet; hasła nie są zapisywane wcale (leci tylko Set-Cookie do słoika) |
 | Sesje do sklepów | jeden izolowany słoik na host **lub** tryb ulotny (RAM, 30 min, patrz rozdz. 6) |
 | Baza przez UI | `/db` i `/api/db/*` tylko do odczytu; nazwy tabel z allowlisty |
@@ -136,7 +137,7 @@ bez CDN). Przycisk pauzy to pauza — Ruffle 0.7 nie daje API do głośności.
 ## 8. Testy
 
 ```bash
-.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 96 passed, 6 skipped
+.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 98 passed, 6 skipped
 node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez przeglądarki
 ./weryfikuj.sh                               # pełna weryfikacja z siecią (uwaga: start serwera = scrape, >120 s)
 ./sync.sh <katalog-docelowy>                # lustro do drugiej kopii (bez twardych ścieżek)
@@ -147,7 +148,7 @@ node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez
 |---|---|
 | `tests/test_ceny.py` | niezmienniki cen na prawdziwych plikach i bazie (żadnego `Free` bez `api:*`) |
 | `tests/test_niezmienniki.py` | filtry, baza, serwer, F2P/DLC |
-| `tests/test_niezalezne.py` | zachowanie na spreparowanych danych: logika cen, SSRF, migracja, martwe linki, offline, punktacja JS, bramka 18+, parser Łowców, render frontendów, sklejanie bliźniaków, jeden `site.js`, kanon 10 linków + filtr źródeł, toggle PL/EN, sanityzer wstrzyknięć i muzeum okazów |
+| `tests/test_niezalezne.py` | zachowanie na spreparowanych danych: logika cen, SSRF, migracja, martwe linki, offline, punktacja JS, bramka 18+, parser Łowców, render frontendów, sklejanie bliźniaków, jeden `site.js`, kanon 10 linków + filtr źródeł, toggle PL/EN, sanityzer wstrzyknięć i muzeum okazów, link doctor |
 
 Filozofia: test ma dać się złamać psując kod. Po tym, jak 52 testy przechodziły
 przy żywym błędzie (`Deal.price` domyślnie `"Free"`), dopisaliśmy testy, które go łapią.
@@ -159,7 +160,7 @@ backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db /muzeum + skrypty (build, smoke, skan)
 data/               # retro.json, bookmarks.json, seed_offers.json (pusty)
-tests/              # 3 pliki, 102 testy (96 przechodzi, 6 pominiętych)
+tests/              # 3 pliki, 104 testy (98 przechodzi, 6 pominiętych)
 ```
 
 Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,
