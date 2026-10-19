@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Weryfikacja aplikacji bez mojego udzialu w ocenie.
+"""Weryfikacja aplikacji — niezależne sprawdzenia.
 
 Uruchom:  ./weryfikuj.sh
 Koniec na liscie plikow, do uruchomienia recznie przez ciebie.
@@ -43,16 +43,14 @@ def _port():
         return int(env)
     run = _run_dir()
     for pt in (run / "port.txt",
-               ROOT / ".tmp" / "port.txt",
-               Path("/tmp/opencode/port.txt")):  # legacy, wsteczna zgodność
+               ROOT / ".tmp" / "port.txt"):
         try:
             if pt.exists() and pt.read_text().strip().isdigit():
                 return int(pt.read_text().strip())
         except OSError:
             pass
     for log in (run / "vp.log",
-                ROOT / ".tmp" / "vp.log",
-                Path("/tmp/opencode/vp.log")):  # legacy
+                ROOT / ".tmp" / "vp.log"):
         try:
             if log.exists():
                 m = re.search(r"127\.0\.0\.1:(\d+)", log.read_text(errors="replace"))
@@ -266,8 +264,8 @@ def v_wyciek():
 # ---------------------------------------------------------------- realne sklepy
 def v_sklepy():
     """Prawdziwe strony przez proxy. example.com nie ma formularza logowania,
-    ciasteczek ani skryptow trackingowych, wiec nie wykryje problemu, ktorego
-    nie umialem przewidziec. Te strony maja wszystkie."""
+    ciasteczek ani skryptow trackingowych, więc nie wykryje takich problemów —
+    te strony je mają."""
     print("\n[9] Realne strony przez proxy (wolne, ~40s)")
     for u in ("https://www.gog.com", "https://itch.io",
               "https://www.humblebundle.com"):

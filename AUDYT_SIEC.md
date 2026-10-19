@@ -106,10 +106,6 @@ Podaję, żeby ta lista nie udawała kompletności:
 - **Nie sprawdzałem skryptów vendored** (`frontend/vendor/`): React 18.3.1,
   ReactDOM, Babel — pliki pobrane wcześniej, weryfikacja sumy kontrolnej
   nie była przeze mnie robiona.
-- **Nie sprawdzałem `/tmp/opencode/`** — to moje katalogi robocze, poza
-  projektem.
 - **Proxy nie przeszło przez prawdziwy sklep z prawdziwym logowaniem.**
   `example.com` nie ma formularza ani ciasteczek. Maszyneria jest napisana, ale
   nie była przetestowana end-to-end z prawdziwym kontem.
-- **Nie czytałem swojego własnego kodu źródłowego** i nie mam jak — wiem
-  tyle, ile widać z zewnątrza procesu.

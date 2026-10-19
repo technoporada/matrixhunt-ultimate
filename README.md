@@ -4,7 +4,7 @@
 > czyści strony z reklam i trackerów. Zero chmury, zero CDN — React, Babel i Ruffle
 > są zvendorowane, baza to lokalny SQLite.
 
-`Python 3.12 · FastAPI · SQLite (WAL) · 47 tras API · 88 testów passing · offline-first`
+`Python 3.12 · FastAPI · SQLite (WAL) · 46 tras API · 91 testów przechodzi (6 pominiętych) · offline-first`
 
 ## Spis treści
 
@@ -50,7 +50,7 @@ Wszystkie podstrony mają górne menu z 10 linkami — nic nie jest schowane w s
 
 ## 3. API
 
-Pełna lista tras: `grep -oE '@app\.(get|post)\("[^"]+"' backend/main.py` (47 tras).
+Pełna lista tras: `grep -oE '@app\.(get|post|put|delete)\(' backend/main.py | wc -l` (46 tras).
 
 | Grupa | Trasy |
 |---|---|
@@ -152,7 +152,7 @@ backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db + skrypty (build, smoke, skan)
 data/               # retro.json, bookmarks.json, seed_offers.json (pusty)
-tests/              # 3 pliki, 88 testów
+tests/              # 3 pliki, 97 testów (91 przechodzi, 6 pominiętych)
 ```
 
 Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,

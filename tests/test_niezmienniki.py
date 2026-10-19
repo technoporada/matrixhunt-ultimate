@@ -53,8 +53,7 @@ def _port():
     if env.isdigit():
         return int(env)
     for log in (_run_dir() / "port.txt",
-                ROOT / ".tmp" / "port.txt",
-                pathlib.Path("/tmp/opencode/port.txt")):  # legacy
+                ROOT / ".tmp" / "port.txt"):
         try:
             if log.exists():
                 txt = log.read_text().strip()
