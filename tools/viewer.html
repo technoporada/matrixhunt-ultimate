@@ -238,7 +238,8 @@
                 '/retro': 'RETRO HUB',
                 '/wiki': 'WIKI',
                 '/bookmarks': 'BOOKMARKS',
-                '/flash': 'FLASH PLAYER'
+                '/flash': 'FLASH PLAYER',
+                '/muzeum': 'MUZEUM'
             };
 
             var params = new URLSearchParams(location.search);
@@ -277,6 +278,7 @@
                 else if (page === '/wiki') frame.src = '/wiki';
                 else if (page === '/bookmarks') frame.src = '/bookmarks';
                 else if (page === '/flash') frame.src = '/flash';
+                else if (page === '/muzeum') frame.src = '/muzeum';
             } else if (url && /^https?:\/\//i.test(url)) {
                 // Third-party sites: cleaned snapshot via the proxy.
                 var host = '';

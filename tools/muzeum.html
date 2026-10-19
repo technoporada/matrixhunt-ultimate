@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'matrix')}catch(e){document.documentElement.setAttribute('data-theme','matrix')}</script>
+    <title>MATRIXHUNT // MUZEUM OKAZÓW</title>
+    <style>
+        :root { --green:#0f0; --dim:rgba(0,255,0,0.15); --bg:#000;
+                --card:rgba(0,20,0,0.85);
+                --glow:0 0 10px #0f0,0 0 20px rgba(0,255,0,0.3);
+                --font:'Courier New',monospace; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:var(--bg); color:var(--green); font-family:var(--font); min-height:100vh; }
+        canvas#matrix-bg { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+        .scanlines { position:fixed; top:0; left:0; width:100%; height:100%;
+            background:repeating-linear-gradient(0deg,rgba(0,0,0,0.15) 0px,rgba(0,0,0,0.15) 1px,transparent 1px,transparent 3px);
+            z-index:1; pointer-events:none; }
+        .container { position:relative; z-index:2; max-width:1100px; margin:0 auto; padding:20px 15px 60px; }
+        header { text-align:center; padding:20px 0; }
+        header h1 { font-size:1.9em; letter-spacing:6px; text-shadow:var(--glow);
+            border:2px solid var(--green); display:inline-block; padding:10px 30px; background:rgba(0,20,0,0.9); }
+        .sub { text-align:center; font-size:0.8em; opacity:0.75; max-width:760px; margin:12px auto 0; line-height:1.7; }
+        .section-title { font-size:1.1em; letter-spacing:4px; border-bottom:1px solid var(--green);
+            padding-bottom:5px; margin:28px 0 14px; text-shadow:var(--glow); }
+        .stats { display:flex; flex-wrap:wrap; gap:10px; }
+        .stat { border:1px solid var(--green); background:var(--card); padding:8px 14px; font-size:0.85em; }
+        .stat b { color:#fff; }
+        .okaz { border:1px solid var(--green); background:var(--card); padding:12px 14px; margin-bottom:10px; }
+        .okaz .meta { font-size:0.78em; opacity:0.75; letter-spacing:1px; word-break:break-all; }
+        .okaz .tag { display:inline-block; border:1px solid var(--green); padding:1px 7px; margin-right:6px; font-size:0.75em; }
+        .okaz pre { margin-top:8px; padding:8px; background:rgba(0,0,0,0.55);
+            border-left:2px solid var(--green); white-space:pre-wrap; word-break:break-all;
+            font-size:0.82em; max-height:220px; overflow:auto; opacity:0.9; }
+        .empty { opacity:0.6; padding:20px 0; }
+        .warn { border:1px solid #a00; color:#f66; background:rgba(40,0,0,0.6); padding:10px 14px; margin-top:14px; font-size:0.8em; }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-bg"></canvas>
+    <div class="scanlines"></div>
+    <div class="container">
+        <header><h1>MUZEUM OKAZÓW</h1></header>
+        <p class="sub">
+            Lokalna kolekcja ataków złapanych przez sanityzer podczas czytania cudzych treści
+            (Reddit i inne źródła). Nic tu nie jest wykonywane ani wysyłane — to dowodownia,
+            nie ścieżka uruchomienia. Próbki są escapowane i pokazywane jako czysty tekst.
+            Liczby liczy deterministycznie serwer, bez żadnego modelu.
+        </p>
+
+        <div class="section-title">// ZESTAWIENIE</div>
+        <div class="stats" id="stats"></div>
+
+        <div class="section-title">// OKAZY (najnowsze pierwsze)</div>
+        <div id="list"></div>
+        <div class="warn" id="warn" style="display:none"></div>
+    </div>
+
+    <script src="/tools/site.js"></script>
+    <script src="/tools/theme.js"></script>
+    <script>
+        (function () {
+            if (window.MH && window.MH.matrixRain) window.MH.matrixRain();
+            var list = document.getElementById('list');
+            var statsBox = document.getElementById('stats');
+            var warn = document.getElementById('warn');
+
+            function el(tag, cls, text) {
+                var e = document.createElement(tag);
+                if (cls) e.className = cls;
+                // textContent, NIGDY innerHTML: okaz pochodzi od atakującego.
+                if (text != null) e.textContent = text;
+                return e;
+            }
+            function chips(pairs) {
+                var box = el('div', 'meta');
+                pairs.forEach(function (p) {
+                    if (p[1] === undefined || p[1] === null || p[1] === '') return;
+                    box.appendChild(el('span', 'tag', p[0] + ': ' + p[1]));
+                });
+                return box;
+            }
+
+            function esc(s) { return String(s == null ? '' : s); }
+
+            function renderStats(s) {
+                statsBox.textContent = '';
+                statsBox.appendChild(el('div', 'stat', 'okazów: ' + (s.total || 0)));
+                (s.by_detector || []).forEach(function (kv) {
+                    statsBox.appendChild(el('div', 'stat', kv[0] + ': ' + kv[1]));
+                });
+            }
+
+            function renderItems(items) {
+                list.textContent = '';
+                if (!items.length) {
+                    list.appendChild(el('div', 'empty',
+                        'Pusto. Gdy sanityzer złapie coś w cudzej treści, okaz pojawi się tutaj.'));
+                    return;
+                }
+                items.forEach(function (r) {
+                    var card = el('div', 'okaz');
+                    var when = r.ts ? new Date(r.ts * 1000).toLocaleString() : '?';
+                    card.appendChild(chips([
+                        ['źródło', esc(r.source) || '?'],
+                        ['pole', esc(r.field)],
+                        ['detektor', esc(r.detector)],
+                        ['wzorzec', esc(r.pattern)],
+                        ['kiedy', when]
+                    ]));
+                    if (r.match) card.appendChild(el('div', 'meta', 'trafienie: ' + esc(r.match)));
+                    if (r.sha256) card.appendChild(el('div', 'meta', 'sha256: ' + esc(r.sha256).slice(0, 32) + '…'));
+                    var pre = el('pre', null, esc(r.sample));
+                    card.appendChild(pre);
+                    list.appendChild(card);
+                });
+            }
+
+            fetch('/api/specimens?limit=300', { cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    renderStats(d.stats || {});
+                    renderItems((d.items) || []);
+                })
+                .catch(function (e) {
+                    warn.style.display = 'block';
+                    warn.textContent = 'Nie udało się wczytać okazów: ' + e;
+                });
+        })();
+    </script>
+</body>
+</html>

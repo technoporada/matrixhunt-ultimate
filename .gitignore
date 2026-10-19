@@ -21,6 +21,8 @@ backend/matrixhunt.db
 *.app_settings.json
 .vault_verifier
 .filterlists
+# Muzeum okazów: próbki ataków. Lokalne dane, nigdy do repo.
+.specimens/
 
 # Kopia usuniętego testu. W gitu nie ma sensu (to .bak), a lokalnie zostaje.
 _testy_usuniete/

@@ -687,6 +687,20 @@ async def flash_player():
     return FileResponse(str(TOOLS_DIR / "flash_player.html"))
 
 
+@app.get("/muzeum")
+async def muzeum():
+    """Muzeum okazów: lokalna kolekcja ataków złapanych przez sanityzer."""
+    return FileResponse(str(TOOLS_DIR / "muzeum.html"))
+
+
+@app.get("/api/specimens")
+async def specimens_list(limit: int = 200):
+    """Okazy ataków (najnowsze pierwsze) + zestawienie. Tylko loopback."""
+    import specimens
+    return {"stats": specimens.stats(),
+            "items": specimens.tail(limit=max(1, min(limit, 1000)))}
+
+
 @app.get("/sw.js")
 async def service_worker():
     # Served from the root so the worker gets "/" scope rather than "/static/".

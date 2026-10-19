@@ -182,6 +182,23 @@ class Deal:
     scraped_at: str = ""
 
     def __post_init__(self):
+        # Sanityzacja w JEDNYM miejscu, przez które przechodzi każdy scraper:
+        # neutralizuje ukryty tekst i wykrywa próby prompt-injection, ZANIM
+        # cokolwiek to przeczyta. Do bazy idzie tekst czysty, ale do muzeum
+        # okazów trafia próbka SUROWA (z zachowanym trikiem).
+        raw_title, raw_desc = self.title or "", self.description or ""
+        try:
+            from sanitize_text import sanitize_text
+            self.title, tf = sanitize_text(raw_title)
+            self.description, df = sanitize_text(raw_desc)
+            if tf or df:
+                import specimens
+                if tf:
+                    specimens.record_findings(self.source, "title", tf, raw_title)
+                if df:
+                    specimens.record_findings(self.source, "description", df, raw_desc)
+        except Exception:
+            pass
         if not self.id:
             self.id = hashlib.md5(f"{self.title}{self.url}{self.source}".encode()).hexdigest()[:12]
         if not self.scraped_at:
