@@ -198,12 +198,25 @@
     <iframe id="viewer-frame" title="embedded page" referrerpolicy="no-referrer"
         sandbox="allow-same-origin allow-forms"></iframe>
     <details id="filters">
-        <summary>FILTER LISTS (uBlock-style): subscriptions, custom rules, block log</summary>
-        <div class="priv-row"><span class="hint">EasyList + EasyPrivacy + Polish filters + Badware block ad/tracker/malware loads. Exceptions (@@) win. When a page breaks, the log below shows exactly which rule fired - disable its list or add an exception instead of guessing.</span></div>
+        <summary id="filters-summary">FILTER LISTS (uBlock-style): subscriptions, custom rules, block log</summary>
+        <div class="priv-row">
+            <span>Filtering:</span>
+            <button id="filters-power" type="button" class="onoff">ON</button>
+            <span class="hint">globalny wyłącznik — gdy strona się psuje, wyłącz tutaj i przeładuj. Subskrypcje: EasyList + EasyPrivacy + Polish + Badware. Wyjątki (@@) wygrywają.</span>
+        </div>
         <div id="filter-lists"></div>
         <div class="priv-row">
             <button id="filters-refresh" type="button">UPDATE LISTS</button>
             <span id="filters-status" class="hint"></span>
+        </div>
+        <div class="priv-row"><span>Moje listy (subskrybowane URL-e):</span></div>
+        <div id="custom-lists"></div>
+        <div class="priv-row">
+            <input id="custom-list-url" type="url" size="42" spellcheck="false"
+                placeholder="https://example.com/filters.txt">
+            <input id="custom-list-name" type="text" size="16" spellcheck="false"
+                placeholder="nazwa (opcjonalnie)">
+            <button id="custom-list-add" type="button">DODAJ LISTĘ</button>
         </div>
         <div class="priv-row" style="align-items:flex-start;">
             <span>Your rules:</span>
@@ -457,9 +470,22 @@
             });
             refreshSettings();
 
-            // ---- filter lists ----
+            // ---- filter lists (menedżer w stylu uBlock) ----
             var listsBox = document.getElementById('filter-lists');
+            var customListsBox = document.getElementById('custom-lists');
             var logBox = document.getElementById('filter-log');
+            var BUILTIN = ['easylist', 'easyprivacy', 'polish', 'badware'];
+            var lastLists = null;   // ostatnia odpowiedź /api/filterlists
+            var lastLog = [];       // ostatni log (akcje z przycisków)
+
+            function escHtml(s) {
+                return String(s == null ? '' : s).replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+            function fetchSettings() {
+                return fetch('/api/settings', { cache: 'no-store' })
+                    .then(function (r) { return r.json(); });
+            }
 
             function setLists(patch) {
                 return fetch('/api/settings', {
@@ -470,38 +496,123 @@
                     refreshFilters();
                 });
             }
+            function saveCustomLists(arr) {
+                return fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'custom_lists', value: arr })
+                }).then(function (r) { return r.json(); }).then(function (s) {
+                    if (s && s.error) { alert('LISTY: ' + s.error); return; }
+                    // Świeżo dodana lista nie ma jeszcze reguł w cache - ściągnij.
+                    return fetch('/api/filterlists/refresh', { method: 'POST' })
+                        .then(function () { refreshFilters(); });
+                });
+            }
+            function paintPower(on) {
+                var b = document.getElementById('filters-power');
+                if (b) { b.textContent = on ? 'ON' : 'OFF'; b.style.opacity = on ? '1' : '0.5'; }
+                var sm = document.getElementById('filters-summary');
+                if (sm) sm.textContent = 'FILTER LISTS [' + (on ? 'ON' : 'OFF') +
+                    ']: subscriptions, custom rules, block log';
+            }
+            function toggleCustom(list, on) {
+                fetchSettings().then(function (s) {
+                    var arr = (s.custom_lists || []).map(function (x) {
+                        return { url: x.url, name: x.name, enabled: x.url === list.url ? on : x.enabled };
+                    });
+                    saveCustomLists(arr);
+                });
+            }
+            function removeCustom(list) {
+                if (!confirm('Usunąć listę ' + (list.name || list.url) + '?')) return;
+                fetchSettings().then(function (s) {
+                    var arr = (s.custom_lists || []).filter(function (x) { return x.url !== list.url; });
+                    saveCustomLists(arr);
+                });
+            }
+            function disableList(listId) {
+                if (BUILTIN.indexOf(listId) >= 0) {
+                    fetchSettings().then(function (s) {
+                        var patch = {};
+                        BUILTIN.forEach(function (id) { patch[id] = !((s.filter_lists || {})[id] === false); });
+                        patch[listId] = false;
+                        setLists(patch);
+                    });
+                } else if (listId.indexOf('custom-') === 0) {
+                    var cl = ((lastLists && lastLists.custom_lists) || [])
+                        .filter(function (x) { return x.id === listId; })[0];
+                    if (cl) toggleCustom(cl, false);
+                } else {
+                    alert('To reguła z Twoich reguł — dopisz wyjątek @@ albo wyłącz ją w polu "Your rules".');
+                }
+            }
+            function addException(rule) {
+                var text = rule || '';
+                if (!text) return;
+                if (text.indexOf('@@') !== 0) text = '@@' + text;
+                fetchSettings().then(function (s) {
+                    var cur = s.custom_rules || '';
+                    if (cur.split('\n').some(function (l) { return l.trim() === text; })) {
+                        alert('wyjątek już jest');
+                        return;
+                    }
+                    var nv = (cur ? cur.replace(/\s*$/, '') + '\n' : '') + text;
+                    fetch('/api/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: 'custom_rules', value: nv })
+                    }).then(function (r) { return r.json(); }).then(function (res) {
+                        if (res && res.error) alert('RULES: ' + res.error);
+                        else refreshFilters();
+                    });
+                });
+            }
 
             function refreshFilters() {
                 fetch('/api/filterlists', { cache: 'no-store' }).then(function (r) {
                     return r.json();
                 }).then(function (d) {
+                    lastLists = d;
+                    paintPower(d.filters_enabled);
                     listsBox.innerHTML = '';
                     d.lists.forEach(function (l) {
                         var row = document.createElement('div');
                         row.className = 'priv-row';
                         var upd = l.updated ? new Date(l.updated * 1000).toLocaleDateString() : 'never';
                         row.innerHTML = '<button type="button" class="onoff">' + (l.enabled ? 'ON' : 'OFF') + '</button>' +
-                            '<span><b>' + l.name + '</b> <span class="hint">' + l.rules + ' rules, updated ' + upd +
-                            (l.error ? ' <b>ERR: ' + l.error + '</b>' : '') + '</span></span>';
+                            '<span><b>' + escHtml(l.name) + '</b> <span class="hint">' + l.rules + ' rules, updated ' + upd +
+                            (l.error ? ' <b>ERR: ' + escHtml(l.error) + '</b>' : '') + '</span></span>';
                         row.querySelector('button').addEventListener('click', function () {
                             var patch = {};
+                            d.lists.forEach(function (o) { patch[o.id] = o.enabled; });
                             patch[l.id] = !l.enabled;
-                            // merge with current states to avoid wiping siblings
-                            d.lists.forEach(function (o) { if (!(o.id in patch)) patch[o.id] = o.enabled; });
                             setLists(patch);
                         });
                         listsBox.appendChild(row);
                     });
+                    customListsBox.innerHTML = '';
+                    (d.custom_lists || []).forEach(function (l) {
+                        var row = document.createElement('div');
+                        row.className = 'priv-row';
+                        var upd = l.updated ? new Date(l.updated * 1000).toLocaleDateString() : 'never';
+                        row.innerHTML = '<button type="button" class="onoff">' + (l.enabled ? 'ON' : 'OFF') + '</button>' +
+                            '<span><b>' + escHtml(l.name || l.url) + '</b> <span class="hint">' + l.rules +
+                            ' rules, updated ' + upd + '</span></span>' +
+                            '<button type="button">USUŃ</button>';
+                        var btns = row.querySelectorAll('button');
+                        btns[0].addEventListener('click', function () { toggleCustom(l, !l.enabled); });
+                        btns[btns.length - 1].addEventListener('click', function () { removeCustom(l); });
+                        customListsBox.appendChild(row);
+                    });
                     var ta = document.getElementById('custom-rules');
                     if (document.activeElement !== ta) {
-                        fetch('/api/settings', { cache: 'no-store' }).then(function (r) {
-                            return r.json();
-                        }).then(function (s) {
+                        fetchSettings().then(function (s) {
                             if (document.activeElement !== ta) ta.value = s.custom_rules || '';
                         }).catch(function () {});
                     }
                     document.getElementById('filters-status').textContent =
-                        'custom rules active: ' + d.custom_rules;
+                        'moje listy: ' + (d.custom_lists || []).length +
+                        ' · reguły własne: ' + d.custom_rules;
                 }).catch(function () {});
                 var host = '';
                 try { host = url ? new URL(url).hostname : (page || ''); } catch (e) {}
@@ -509,17 +620,50 @@
                     { cache: 'no-store' }).then(function (r) {
                     return r.json();
                 }).then(function (items) {
-                    var esc = function (s) {
-                        return String(s == null ? '' : s).replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    };
-                    logBox.innerHTML = items.length ? items.map(function (e) {
-                        return '<div class="hit">✕ ' + esc(e.resource) +
-                            '<br><span class="rule">' + esc(e.rule) + ' [' + esc(e.list) + ']</span></div>';
+                    lastLog = items;
+                    logBox.innerHTML = items.length ? items.map(function (e, i) {
+                        return '<div class="hit">✕ ' + escHtml(e.resource) +
+                            '<br><span class="rule">' + escHtml(e.rule) + ' [' + escHtml(e.list) + ']</span>' +
+                            '<br><button type="button" data-i="' + i + '" data-act="off">wyłącz listę</button> ' +
+                            '<button type="button" data-i="' + i + '" data-act="exc">dodaj wyjątek @@</button></div>';
                     }).join('') : '<div class="hit">nothing blocked on this page yet</div>';
                 }).catch(function () {});
             }
 
+            document.getElementById('filters-power').addEventListener('click', function () {
+                var on = this.textContent === 'ON';
+                fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'filters_enabled', value: !on })
+                }).then(function (r) { return r.json(); }).then(function (s) {
+                    if (s && s.error) { alert('SETTINGS: ' + s.error); return; }
+                    refreshFilters();
+                });
+            });
+            document.getElementById('custom-list-add').addEventListener('click', function () {
+                var u = document.getElementById('custom-list-url').value.trim();
+                var n = document.getElementById('custom-list-name').value.trim();
+                if (!/^https?:\/\//i.test(u)) { alert('URL musi być http(s)'); return; }
+                fetchSettings().then(function (s) {
+                    var arr = (s.custom_lists || []).slice();
+                    if (arr.some(function (x) { return x.url === u; })) { alert('już dodana'); return; }
+                    arr.push({ url: u, name: n, enabled: true });
+                    document.getElementById('custom-list-url').value = '';
+                    document.getElementById('custom-list-name').value = '';
+                    saveCustomLists(arr);
+                });
+            });
+            logBox.addEventListener('click', function (ev) {
+                var b = ev.target.closest ? ev.target.closest('button') : null;
+                if (!b) return;
+                var i = b.getAttribute('data-i');
+                if (i === null) return;
+                var e = lastLog[+i];
+                if (!e) return;
+                if (b.getAttribute('data-act') === 'off') disableList(e.list);
+                else addException(e.rule);
+            });
             document.getElementById('filters-refresh').addEventListener('click', function () {
                 document.getElementById('filters-status').textContent = 'updating…';
                 fetch('/api/filterlists/refresh', { method: 'POST' }).then(function () {

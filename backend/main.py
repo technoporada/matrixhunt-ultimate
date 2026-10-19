@@ -835,21 +835,24 @@ def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
                 persist_from_requests(final_host, sess)
                 state = session_state(final_host)
             from filterlists import get_engine, custom_engine, elog
-            flt = {"engine": get_engine(),
-                   "custom": custom_engine(settings.get("custom_rules", "")),
-                   "enabled": frozenset(lid for lid, on in
-                                        settings.get("filter_lists", {}).items() if on),
-                   "log": True}
-            # Page-level $network rules (badware list): refuse known-filthy
-            # pages outright with 451 instead of framing them.
-            blocked, rule = flt["engine"].check(current, current, "document",
-                                                enabled=flt["enabled"])
-            if blocked and getattr(rule, "network", False):
-                elog.add(current, current, rule, "blocked-page")
-                return JSONResponse(
-                    {"error": "page blocked by filter list",
-                     "rule": rule.raw[:160], "list": rule.list_id},
-                    status_code=451)
+            if settings.get("filters_enabled", True):
+                flt = {"engine": get_engine(),
+                       "custom": custom_engine(settings),
+                       "enabled": frozenset(lid for lid, on in
+                                            settings.get("filter_lists", {}).items() if on),
+                       "log": True}
+                # Page-level $network rules (badware list): refuse known-filthy
+                # pages outright with 451 instead of framing them.
+                blocked, rule = flt["engine"].check(current, current, "document",
+                                                    enabled=flt["enabled"])
+                if blocked and getattr(rule, "network", False):
+                    elog.add(current, current, rule, "blocked-page")
+                    return JSONResponse(
+                        {"error": "page blocked by filter list",
+                         "rule": rule.raw[:160], "list": rule.list_id},
+                        status_code=451)
+            else:
+                flt = None
             cleaned, removed, filtered = clean_html(r.text, current, flt=flt)
             return HTMLResponse(
                 content=cleaned,
@@ -918,33 +921,46 @@ async def sessions_ephemeral_forget(host: str):
 
 @app.get("/api/filterlists")
 async def filterlists_status():
-    """Subscription lists: rule counts, last update, on/off state."""
-    from filterlists import get_engine, LISTS
+    """Subscription lists: rule counts, last update, on/off state, custom lists."""
+    from filterlists import get_engine, custom_engine, custom_file_id, LISTS
     from settings_store import read_settings
     eng = get_engine()
     settings = read_settings()
     enabled = settings.get("filter_lists", {})
+    cent = custom_engine(settings)
     custom_n = len([l for l in (settings.get("custom_rules") or "").splitlines()
                     if l.strip() and not l.strip().startswith("!")])
-    return {"lists": [
-        {"id": lid, "name": meta["name"], "url": meta["url"],
-         "enabled": bool(enabled.get(lid, True)),
-         "rules": eng.stats.get(lid, {}).get("network", 0),
-         "exceptions": eng.stats.get(lid, {}).get("exceptions", 0),
-         "updated": eng.loaded.get(lid, {}).get("updated", 0),
-         "error": eng.loaded.get(lid, {}).get("error")}
-        for lid, meta in LISTS.items()],
+    return {
+        "filters_enabled": bool(settings.get("filters_enabled", True)),
+        "lists": [
+            {"id": lid, "name": meta["name"], "url": meta["url"],
+             "enabled": bool(enabled.get(lid, True)),
+             "rules": eng.stats.get(lid, {}).get("network", 0),
+             "exceptions": eng.stats.get(lid, {}).get("exceptions", 0),
+             "updated": eng.loaded.get(lid, {}).get("updated", 0),
+             "error": eng.loaded.get(lid, {}).get("error")}
+            for lid, meta in LISTS.items()],
+        "custom_lists": [
+            {"id": custom_file_id(lst["url"]), "name": lst.get("name", ""),
+             "url": lst["url"], "enabled": bool(lst.get("enabled", True)),
+             "rules": cent.stats.get(custom_file_id(lst["url"]), {}).get("network", 0),
+             "updated": cent.loaded.get(custom_file_id(lst["url"]), {}).get("updated", 0)}
+            for lst in settings.get("custom_lists", [])],
         "custom_rules": custom_n}
 
 
 @app.post("/api/filterlists/refresh")
 async def filterlists_refresh():
-    """Force re-download of all subscription lists."""
-    from filterlists import reset_engine, get_engine
-    reset_engine()
-    eng = get_engine()
-    return {"lists": len(eng.loaded),
-            "errors": {lid: v.get("error") for lid, v in eng.loaded.items() if v.get("error")}}
+    """Force re-download of all subscription lists (built-in + custom)."""
+    def _work():
+        from filterlists import reset_engine, get_engine, download_custom_lists
+        reset_engine()
+        eng = get_engine()
+        errors = {lid: v.get("error") for lid, v in eng.loaded.items()
+                  if v.get("error")}
+        errors.update(download_custom_lists())
+        return {"lists": len(eng.loaded), "errors": errors}
+    return await asyncio.to_thread(_work)
 
 
 @app.get("/api/filterlog")
