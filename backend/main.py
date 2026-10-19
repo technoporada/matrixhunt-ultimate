@@ -178,6 +178,14 @@ async def _api_guard(request, call_next):
     if request.url.path.startswith("/api/"):
         if not _is_loopback_host(request.headers.get("host")):
             return JSONResponse({"error": "loopback only"}, status_code=403)
+        # CSRF hardening for the proxy endpoints: a cross-origin page may
+        # otherwise trigger a server-side fetch (with the user's stored
+        # cookies for the target host) via <img>/<iframe>/fetch. A request
+        # that carries an Origin header must come from this app's own origin.
+        if request.url.path in ("/api/clean", "/api/img"):
+            origin = request.headers.get("origin")
+            if origin and not _is_own_origin(origin):
+                return JSONResponse({"error": "cross-origin blocked"}, status_code=403)
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             token = request.headers.get("x-mh-token", "")
             if not token or not _token_ok(token):
