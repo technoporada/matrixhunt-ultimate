@@ -243,6 +243,15 @@
                 errBox.textContent = html;
             }
 
+            // Tylko http(s) — blokuje javascript:, data:, vbscript: itp.
+            function safeUrl(raw) {
+                try {
+                    var u = new URL(raw);
+                    if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+                } catch (e) {}
+                return null;
+            }
+
             if (page && PAGES[page]) {
                 // Our own pages: trusted, full functionality.
                 srcEl.textContent = (window.mhLang ? window.mhLang.t('nav.home') : 'MATRIXHUNT') + ' :: ' + PAGES[page];
@@ -256,7 +265,8 @@
                 try { host = new URL(url).hostname; } catch (e) { host = url; }
                 srcEl.textContent = (window.mhLang ? window.mhLang.t('viewer.cleaned') : 'CLEANED') + ' :: ' + host;
                 badge.textContent = window.mhLang ? window.mhLang.t('viewer.antysyf') : 'ANTYSYF ON';
-                orig.href = url;
+                var su = safeUrl(url);
+                if (su) orig.href = su;
                 frame.src = cleanUrl(url);
                 frame.addEventListener('load', function () {
                     // The proxy answers JSON errors with 4xx/5xx; an empty
@@ -267,7 +277,8 @@
                             (doc.body.textContent || '').indexOf('{') === 0) {
                             fail((window.mhLang && document.documentElement.getAttribute('data-lang') === 'pl' ? 'CZYSZCZENIE NIEUDANE: ' : 'CLEAN FAILED: ') + doc.body.textContent);
                             var a = document.createElement('a');
-                            a.href = url;
+                            var su = safeUrl(url);
+                            if (su) a.href = su;
                             a.target = '_blank';
                             a.rel = 'noopener';
                             a.textContent = 'OPEN ORIGINAL INSTEAD ↗';

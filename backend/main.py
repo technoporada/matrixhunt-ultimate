@@ -1164,6 +1164,12 @@ async def db_tables():
         con.close()
 
 
+def _qident(name: str) -> str:
+    """Quote an SQL identifier safely (double-quote, escape inner quotes).
+    Only called after table name has been allowlisted + regex-validated."""
+    return '"' + name.replace('"', '""') + '"'
+
+
 @app.get("/api/db/rows")
 async def db_rows(table: str, search: str = "", page: int = 1, limit: int = 100):
     # Table names can never be bound parameters - allowlist against the
@@ -1176,15 +1182,15 @@ async def db_rows(table: str, search: str = "", page: int = 1, limit: int = 100)
     page = max(1, page)
     con = _db_ro()
     try:
-        cols = [r[1] for r in con.execute(f'PRAGMA table_info("{table}")')]
+        cols = [r[1] for r in con.execute(f'PRAGMA table_info({_qident(table)})')]
         where, params = "", []
         if search:
             text_cols = [c for c in cols]
             where = "WHERE " + " OR ".join(f'CAST("{c}" AS TEXT) LIKE ?' for c in text_cols)
             params = [f"%{search}%"] * len(text_cols)
-        total = con.execute(f'SELECT COUNT(*) FROM "{table}" {where}', params).fetchone()[0]
+        total = con.execute(f'SELECT COUNT(*) FROM {_qident(table)} {where}', params).fetchone()[0]
         rows = con.execute(
-            f'SELECT * FROM "{table}" {where} LIMIT ? OFFSET ?',
+            f'SELECT * FROM {_qident(table)} {where} LIMIT ? OFFSET ?',
             params + [limit, (page - 1) * limit]).fetchall()
         return {"table": table, "columns": cols, "total": total,
                 "page": page, "limit": limit,
