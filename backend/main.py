@@ -73,7 +73,9 @@ _PUBLIC_DATA = ("seed_offers.json", "retro.json", "bookmarks.json")
 async def data_file(name: str):
     if name not in _PUBLIC_DATA:
         return JSONResponse({"error": "not found"}, status_code=404)
-    path = DATA_DIR / name
+    path = (DATA_DIR / name).resolve()
+    if not path.is_relative_to(DATA_DIR.resolve()):
+        return JSONResponse({"error": "not found"}, status_code=404)
     if not path.exists():
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(str(path), media_type="application/json")
@@ -780,8 +782,8 @@ def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
                 r = sess.request(cur_method, current, data=cur_body,
                                  headers=req_headers, timeout=15,
                                  allow_redirects=False)
-            except Exception as e:
-                return JSONResponse({"error": f"fetch failed: {e}"}, status_code=502)
+            except Exception:
+                return JSONResponse({"error": "fetch failed"}, status_code=502)
             if r.status_code in (301, 302, 303, 307, 308):
                 location = r.headers.get("Location", "")
                 if not location:
@@ -1018,10 +1020,10 @@ def _img_sync(url):
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MatrixHunt-Viewer/2.0",
                 "Accept": "image/*",
             })
-        except Exception as e:
+        except Exception:
             if r is not None:
                 r.close()
-            return JSONResponse({"error": f"fetch failed: {e}"}, status_code=502)
+            return JSONResponse({"error": "fetch failed"}, status_code=502)
         if r.status_code in (301, 302, 303, 307, 308):
             loc = r.headers.get("Location", "")
             r.close()
@@ -1168,6 +1170,8 @@ async def db_rows(table: str, search: str = "", page: int = 1, limit: int = 100)
     # schema instead (the desktop original interpolated them raw).
     if table not in _db_tables():
         raise HTTPException(status_code=400, detail="unknown table")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+        raise HTTPException(status_code=400, detail="unknown table")
     limit = max(1, min(limit, 200))
     page = max(1, page)
     con = _db_ro()
@@ -1209,8 +1213,8 @@ async def settings_set(request: Request):
     key, value = payload.get("key"), payload.get("value")
     try:
         return write_setting(key, value)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+    except ValueError:
+        return JSONResponse({"error": "invalid setting"}, status_code=400)
 
 
 @app.get("/api/netcheck")

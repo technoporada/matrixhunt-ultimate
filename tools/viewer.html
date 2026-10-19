@@ -240,7 +240,7 @@
             function fail(html) {
                 frame.style.display = 'none';
                 errBox.style.display = 'block';
-                errBox.innerHTML = html;
+                errBox.textContent = html;
             }
 
             if (page && PAGES[page]) {
@@ -265,9 +265,14 @@
                         var doc = frame.contentDocument;
                         if (doc && doc.body && doc.body.children.length === 0 &&
                             (doc.body.textContent || '').indexOf('{') === 0) {
-                            fail((window.mhLang && document.documentElement.getAttribute('data-lang') === 'pl' ? 'CZYSZCZENIE NIEUDANE: ' : 'CLEAN FAILED: ') + doc.body.textContent +
-                                '<br><a href="' + url.replace(/"/g, '') +
-                                '" target="_blank" rel="noopener">OPEN ORIGINAL INSTEAD ↗</a>');
+                            fail((window.mhLang && document.documentElement.getAttribute('data-lang') === 'pl' ? 'CZYSZCZENIE NIEUDANE: ' : 'CLEAN FAILED: ') + doc.body.textContent);
+                            var a = document.createElement('a');
+                            a.href = url;
+                            a.target = '_blank';
+                            a.rel = 'noopener';
+                            a.textContent = 'OPEN ORIGINAL INSTEAD ↗';
+                            errBox.appendChild(document.createElement('br'));
+                            errBox.appendChild(a);
                         }
                     } catch (e) { /* cross-origin - content loaded fine */ }
                 });

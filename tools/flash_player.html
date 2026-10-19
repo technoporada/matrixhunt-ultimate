@@ -458,6 +458,12 @@
     return (bytes / 1048576).toFixed(2) + ' MB';
   }
 
+  function escapeHtml(text) {
+    var d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+  }
+
   function loadSwf(file) {
     if (!file.name.toLowerCase().endsWith('.swf')) {
       statusLine.innerHTML = '&gt; ERROR: NOT A SWF FILE<span class="blink">_</span>';
@@ -471,7 +477,7 @@
 
     document.getElementById('info-filename').textContent = file.name;
     document.getElementById('info-filesize').textContent = formatSize(file.size);
-    statusLine.innerHTML = '&gt; LOADING: ' + file.name.toUpperCase() + '<span class="blink">_</span>';
+    statusLine.innerHTML = '&gt; LOADING: ' + escapeHtml(file.name.toUpperCase()) + '<span class="blink">_</span>';
 
     playerPlaceholder.style.display = 'none';
     playerContainer.classList.add('swf-loaded');
@@ -498,7 +504,7 @@
       setBtn('btn-fullscreen', true);
       setBtn('btn-restart', true);
       setBtn('btn-pause', true, '[ PAUSE ]');
-      statusLine.innerHTML = '&gt; PLAYING: ' + file.name.toUpperCase() + '<span class="blink">_</span>';
+      statusLine.innerHTML = '&gt; PLAYING: ' + escapeHtml(file.name.toUpperCase()) + '<span class="blink">_</span>';
     }).catch(function(err) {
       var msg = String((err && err.message) || err || 'load failed').toUpperCase().slice(0, 100);
       statusLine.innerHTML = '&gt; ERROR: ' + msg + '<span class="blink">_</span>';
@@ -514,7 +520,7 @@
       Promise.resolve(loaded).then(function() {
         isPaused = false;
         setBtn('btn-pause', true, '[ PAUSE ]');
-        statusLine.innerHTML = '&gt; PLAYING: ' + currentFileName.toUpperCase() + '<span class="blink">_</span>';
+        statusLine.innerHTML = '&gt; PLAYING: ' + escapeHtml(currentFileName.toUpperCase()) + '<span class="blink">_</span>';
       }).catch(function(err) {
         statusLine.innerHTML = '&gt; ERROR: ' + String((err && err.message) || err).toUpperCase().slice(0, 100) + '<span class="blink">_</span>';
       });
@@ -553,7 +559,7 @@
         else if (typeof rufflePlayerEl.resume === 'function') rufflePlayerEl.resume();
         isPaused = false;
         setBtn('btn-pause', true, '[ PAUSE ]');
-        statusLine.innerHTML = '&gt; PLAYING: ' + currentFileName.toUpperCase() + '<span class="blink">_</span>';
+        statusLine.innerHTML = '&gt; PLAYING: ' + escapeHtml(currentFileName.toUpperCase()) + '<span class="blink">_</span>';
       }
     } catch (e) {
       statusLine.innerHTML = '&gt; ERROR: ' + String(e && e.message || e).toUpperCase().slice(0, 80) + '<span class="blink">_</span>';

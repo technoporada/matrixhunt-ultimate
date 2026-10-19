@@ -145,7 +145,9 @@ def list_sessions():
 def forget_host(host):
     """Delete one site's jar = log that site out. Returns True if removed."""
     try:
-        p = jar_path(host)
+        p = jar_path(host).resolve()
+        if not p.is_relative_to(JAR_DIR.resolve()):
+            return False
         if p.exists():
             p.unlink()
             return True
