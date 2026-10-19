@@ -4,7 +4,7 @@
 > czyści strony z reklam i trackerów. Zero chmury, zero CDN — React, Babel i Ruffle
 > są zvendorowane, baza to lokalny SQLite.
 
-`Python 3.12 · FastAPI · SQLite (WAL) · 46 tras API · 91 testów przechodzi (6 pominiętych) · offline-first`
+`Python 3.12 · FastAPI · SQLite (WAL) · 46 tras API · 105 testów przechodzi (6 pominiętych) · offline-first`
 
 ## Spis treści
 
@@ -137,7 +137,7 @@ bez CDN). Przycisk pauzy to pauza — Ruffle 0.7 nie daje API do głośności.
 ## 8. Testy
 
 ```bash
-.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 99 passed, 6 skipped
+.venv/bin/python -m pytest tests/ -q        # 2026-10-19: 105 passed, 6 skipped
 node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez przeglądarki
 ./weryfikuj.sh                               # pełna weryfikacja z siecią (uwaga: start serwera = scrape, >120 s)
 ./sync.sh <katalog-docelowy>                # lustro do drugiej kopii (bez twardych ścieżek)
@@ -160,7 +160,7 @@ backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db /muzeum + skrypty (build, smoke, skan)
 data/               # retro.json, bookmarks.json, seed_offers.json (pusty)
-tests/              # 3 pliki, 105 testów (99 przechodzi, 6 pominiętych)
+tests/              # 3 pliki, 105 testów (wszystkie przechodzą z serwerem; 6 pomija się bez serwera)
 ```
 
 Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,
