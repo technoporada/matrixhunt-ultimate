@@ -252,13 +252,18 @@
                 return null;
             }
 
+            // Wewnętrzne strony — hartkodowane ścieżki, nigdy surowy parametr page.
             if (page && PAGES[page]) {
-                // Our own pages: trusted, full functionality.
                 srcEl.textContent = (window.mhLang ? window.mhLang.t('nav.home') : 'MATRIXHUNT') + ' :: ' + PAGES[page];
                 badge.textContent = window.mhLang ? window.mhLang.t('viewer.internal') : 'INTERNAL';
                 badge.style.display = 'none';
                 orig.style.display = 'none';
-                frame.src = page;
+                if (page === '/') frame.src = '/';
+                else if (page === '/pad') frame.src = '/pad';
+                else if (page === '/retro') frame.src = '/retro';
+                else if (page === '/wiki') frame.src = '/wiki';
+                else if (page === '/bookmarks') frame.src = '/bookmarks';
+                else if (page === '/flash') frame.src = '/flash';
             } else if (url && /^https?:\/\//i.test(url)) {
                 // Third-party sites: cleaned snapshot via the proxy.
                 var host = '';
@@ -266,8 +271,10 @@
                 srcEl.textContent = (window.mhLang ? window.mhLang.t('viewer.cleaned') : 'CLEANED') + ' :: ' + host;
                 badge.textContent = window.mhLang ? window.mhLang.t('viewer.antysyf') : 'ANTYSYF ON';
                 var su = safeUrl(url);
-                if (su) orig.href = su;
-                frame.src = cleanUrl(url);
+                if (su) {
+                    orig.href = su;
+                    frame.src = cleanUrl(su);
+                }
                 frame.addEventListener('load', function () {
                     // The proxy answers JSON errors with 4xx/5xx; an empty
                     // document here means the clean failed - offer the raw link.
@@ -438,7 +445,10 @@
                 } catch (e) {}
                 paintEph();
                 // Przeładuj bieżącą stronę w nowym trybie.
-                if (url && /^https?:\/\//i.test(url)) frame.src = cleanUrl(url);
+                if (url && /^https?:\/\//i.test(url)) {
+                    var su2 = safeUrl(url);
+                    if (su2) frame.src = cleanUrl(su2);
+                }
                 refreshSettings();
             });
             document.getElementById('priv-eph-forget').addEventListener('click', function () {

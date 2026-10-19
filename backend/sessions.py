@@ -142,8 +142,13 @@ def list_sessions():
     return out
 
 
+_HOST_OK = re.compile(r"^[a-z0-9.-]+$")
+
+
 def forget_host(host):
     """Delete one site's jar = log that site out. Returns True if removed."""
+    if not host or not _HOST_OK.fullmatch(host):
+        return False
     try:
         p = jar_path(host).resolve()
         if not p.is_relative_to(JAR_DIR.resolve()):

@@ -67,14 +67,17 @@ _mimetypes.add_type("application/wasm", ".wasm")
 # served to anyone who asked for /data/vulncheck.json with no token. Only the
 # four public catalogues are exposed, by explicit name.
 _PUBLIC_DATA = ("seed_offers.json", "retro.json", "bookmarks.json")
+_DATA_PATHS = {
+    "seed_offers.json": DATA_DIR / "seed_offers.json",
+    "retro.json": DATA_DIR / "retro.json",
+    "bookmarks.json": DATA_DIR / "bookmarks.json",
+}
 
 
 @app.get("/data/{name}")
 async def data_file(name: str):
-    if name not in _PUBLIC_DATA:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    path = (DATA_DIR / name).resolve()
-    if not path.is_relative_to(DATA_DIR.resolve()):
+    path = _DATA_PATHS.get(name)
+    if path is None:
         return JSONResponse({"error": "not found"}, status_code=404)
     if not path.exists():
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -1174,10 +1177,14 @@ def _qident(name: str) -> str:
 async def db_rows(table: str, search: str = "", page: int = 1, limit: int = 100):
     # Table names can never be bound parameters - allowlist against the
     # schema instead (the desktop original interpolated them raw).
-    if table not in _db_tables():
+    # Re-derive table from the schema so user-controlled input never
+    # reaches the SQL string - only validated names from the database do.
+    _valid_tables = {t["table"] for t in _db_tables()}
+    if table not in _valid_tables:
         raise HTTPException(status_code=400, detail="unknown table")
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
         raise HTTPException(status_code=400, detail="unknown table")
+    table = next(t for t in _valid_tables if t == table)
     limit = max(1, min(limit, 200))
     page = max(1, page)
     con = _db_ro()
