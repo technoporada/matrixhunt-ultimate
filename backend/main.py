@@ -805,11 +805,12 @@ def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
             try:
                 r = sess.request(cur_method, current, data=cur_body,
                                  headers=req_headers, timeout=15,
-                                 allow_redirects=False)
+                                 allow_redirects=False, stream=True)
             except Exception:
                 return JSONResponse({"error": "fetch failed"}, status_code=502)
             if r.status_code in (301, 302, 303, 307, 308):
                 location = r.headers.get("Location", "")
+                r.close()
                 if not location:
                     return JSONResponse({"error": "empty redirect"}, status_code=502)
                 current = urljoin(current, location)
@@ -829,18 +830,36 @@ def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
                     429: "rate limited by the store, try again later",
                     451: "blocked for legal reasons at the store",
                 }.get(r.status_code, "the store returned an error")
+                r.close()
                 return JSONResponse(
                     {"error": f"upstream {r.status_code}", "reason": why,
                      "url": current},
                     status_code=502)
             ctype = r.headers.get("Content-Type", "")
             if "html" not in ctype.lower():
+                r.close()
                 return JSONResponse(
                     {"error": "not HTML", "content_type": ctype, "url": current},
                     status_code=415,
                 )
-            if len(r.content) > MAX_BYTES:
+            # Bounded read: never buffer an unbounded upstream body. Without
+            # stream=True a remote page (or a CSRF-triggered GET /api/clean
+            # aimed at an attacker URL) could stream gigabytes into RAM before
+            # the old post-hoc len(r.content) check ever ran.
+            chunks, total, too_big = [], 0, False
+            for chunk in r.iter_content(65536):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > MAX_BYTES:
+                    too_big = True
+                    break
+                chunks.append(chunk)
+            encoding = r.encoding or "utf-8"
+            r.close()
+            if too_big:
                 return JSONResponse({"error": "page too large"}, status_code=413)
+            html_text = b"".join(chunks).decode(encoding, "replace")
             # Persist against the host we actually ended on. Using the host
             # from the ORIGINAL url merged every cookie a redirect target set
             # into the first host's jar, which broke the per-site isolation
@@ -874,7 +893,7 @@ def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
                         status_code=451)
             else:
                 flt = None
-            cleaned, removed, filtered = clean_html(r.text, current, flt=flt)
+            cleaned, removed, filtered = clean_html(html_text, current, flt=flt)
             return HTMLResponse(
                 content=cleaned,
                 headers={"X-MH-Cleaned": str(removed), "X-MH-Source": current,
