@@ -152,11 +152,14 @@ def forget_host(host):
     if ".." in host or "/" in host or "\\" in host or "\x00" in host:
         return False
     safe = SAFE_HOST.sub("_", host.lower())[:100] or "unknown"
-    p = JAR_DIR / f"{safe}.json"
+    target = f"{safe}.json"
     try:
-        if p.exists():
-            p.unlink()
-            return True
+        if not JAR_DIR.exists():
+            return False
+        for p in JAR_DIR.glob("*.json"):
+            if p.name == target:
+                p.unlink()
+                return True
     except OSError:
         pass
     return False
