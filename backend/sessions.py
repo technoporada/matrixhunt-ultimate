@@ -149,10 +149,11 @@ def forget_host(host):
     """Delete one site's jar = log that site out. Returns True if removed."""
     if not host or not _HOST_OK.fullmatch(host):
         return False
+    if ".." in host or "/" in host or "\\" in host or "\x00" in host:
+        return False
+    safe = SAFE_HOST.sub("_", host.lower())[:100] or "unknown"
+    p = JAR_DIR / f"{safe}.json"
     try:
-        p = jar_path(host).resolve()
-        if not p.is_relative_to(JAR_DIR.resolve()):
-            return False
         if p.exists():
             p.unlink()
             return True
