@@ -89,6 +89,10 @@ footer a:hover{color:var(--cyan);text-decoration:underline}
 
 <div class="panel active" id="panel-gamepad">
 <div class="section">
+<h3>STATUS</h3>
+<div id="pad-status" class="value highlight">No gamepad detected — naciśnij dowolny przycisk na padzie.</div>
+</div>
+<div class="section">
 <h3>ANALOG STICKS</h3>
 <div class="flex-row">
 <div class="flex-col" style="align-items:center">
@@ -332,9 +336,10 @@ var padNames=['A','B','X','Y','LB','RB','BACK','START','LS','RS','DPAD-U','DPAD-
 var padBtns=document.getElementById('pad-buttons');
 padNames.forEach(function(n,i){var d=document.createElement('div');d.className='btn-pad';d.id='pb-'+i;d.textContent=n;padBtns.appendChild(d)});
 
-var gamepadConnected=false,gamepadIndex=-1,padCal={left:{x:0,y:0},right:{x:0,y:0}};
+var gamepadConnected=false,gamepadIndex=-1,padCal={left:{x:0,y:0},right:{x:0,y:0}},lastPadId=null;
 function getPad(){var gps=navigator.getGamepads?navigator.getGamepads():[];for(var i=0;i<gps.length;i++){if(gps[i])return gps[i]}return null}
-function updateSticks(){var gp=getPad();if(!gp)return;
+function padStatus(m){var el=document.getElementById('pad-status');if(el)el.textContent=m}
+function updateSticks(gp){gp=gp||getPad();if(!gp)return;
 var lx=gp.axes[0]||0,ly=gp.axes[1]||0,rx=gp.axes[2]||0,ry=gp.axes[3]||0;
 document.getElementById('lx-val').textContent=lx.toFixed(3);
 document.getElementById('ly-val').textContent=ly.toFixed(3);
@@ -352,8 +357,8 @@ document.getElementById('l2-fill').style.width=(l2*100)+'%';
 document.getElementById('r2-fill').style.width=(r2*100)+'%';
 gp.buttons.forEach(function(b,i){if(i<padNames.length){var el=document.getElementById('pb-'+i);if(el){if(b.pressed||b.value>0.5)el.classList.add('lit');else el.classList.remove('lit')}}})}
 
-window.addEventListener('gamepadconnected',function(e){gamepadConnected=true;gamepadIndex=e.gamepad.index});
-window.addEventListener('gamepaddisconnected',function(){gamepadConnected=false;gamepadIndex=-1});
+window.addEventListener('gamepadconnected',function(e){gamepadConnected=true;gamepadIndex=e.gamepad.index;lastPadId=e.gamepad.id;padStatus('GAMEPAD connected: '+e.gamepad.id)});
+window.addEventListener('gamepaddisconnected',function(){gamepadConnected=false;gamepadIndex=-1;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie.')});
 
 document.getElementById('vibrate-btn').addEventListener('click',function(){var gp=getPad();if(gp&&gp.vibrate){var v=gp.vibrate(1.0,1.0,500);
 document.getElementById('vibrate-status').textContent='Vibrating...';setTimeout(function(){document.getElementById('vibrate-status').textContent='Done'},600)}
@@ -582,8 +587,9 @@ var drivers=[
 ];
 drivers.forEach(function(d){dc.innerHTML+='<div class="driver-card"><div><span class="tag">'+d.platform+'</span></div><h4>'+d.name+'</h4><p>'+d.desc+'</p><a href="'+d.link+'" target="_blank" rel="noopener">View Details →</a></div>'})})();
 
-// Gamepad polling
-setInterval(function(){if(gamepadConnected)updateSticks()},50);
+// Gamepad polling — świadomie bez czekania na event: przeglądarka pokazuje
+// pad dopiero po naciśnięciu przycisku, więc pokazujemy stan i wykrywamy sami.
+setInterval(function(){var gp=getPad();if(gp){if(gp.id!==lastPadId){lastPadId=gp.id;padStatus('GAMEPAD: '+gp.id)}gamepadConnected=true;updateSticks(gp)}else if(gamepadConnected||lastPadId){gamepadConnected=false;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie.')}},50);
 })();
 </script>
     <script src="/tools/theme.js"></script>
