@@ -90,7 +90,7 @@ footer a:hover{color:var(--cyan);text-decoration:underline}
 <div class="panel active" id="panel-gamepad">
 <div class="section">
 <h3>STATUS</h3>
-<div id="pad-status" class="value highlight">No gamepad detected — naciśnij dowolny przycisk na padzie.</div>
+<div id="pad-status" class="value highlight">No gamepad detected — naciśnij dowolny przycisk na padzie. (Linux: sudo usermod -aG input $USER, potem wyloguj/zaloguj)</div>
 </div>
 <div class="section">
 <h3>ANALOG STICKS</h3>
@@ -358,7 +358,7 @@ document.getElementById('r2-fill').style.width=(r2*100)+'%';
 gp.buttons.forEach(function(b,i){if(i<padNames.length){var el=document.getElementById('pb-'+i);if(el){if(b.pressed||b.value>0.5)el.classList.add('lit');else el.classList.remove('lit')}}})}
 
 window.addEventListener('gamepadconnected',function(e){gamepadConnected=true;gamepadIndex=e.gamepad.index;lastPadId=e.gamepad.id;padStatus('GAMEPAD connected: '+e.gamepad.id)});
-window.addEventListener('gamepaddisconnected',function(){gamepadConnected=false;gamepadIndex=-1;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie.')});
+window.addEventListener('gamepaddisconnected',function(){gamepadConnected=false;gamepadIndex=-1;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie. (Linux: sudo usermod -aG input $USER, potem wyloguj/zaloguj)')});
 
 document.getElementById('vibrate-btn').addEventListener('click',function(){var gp=getPad();if(gp&&gp.vibrate){var v=gp.vibrate(1.0,1.0,500);
 document.getElementById('vibrate-status').textContent='Vibrating...';setTimeout(function(){document.getElementById('vibrate-status').textContent='Done'},600)}
@@ -589,7 +589,7 @@ drivers.forEach(function(d){dc.innerHTML+='<div class="driver-card"><div><span c
 
 // Gamepad polling — świadomie bez czekania na event: przeglądarka pokazuje
 // pad dopiero po naciśnięciu przycisku, więc pokazujemy stan i wykrywamy sami.
-setInterval(function(){var gp=getPad();if(gp){if(gp.id!==lastPadId){lastPadId=gp.id;padStatus('GAMEPAD: '+gp.id)}gamepadConnected=true;updateSticks(gp)}else if(gamepadConnected||lastPadId){gamepadConnected=false;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie.')}},50);
+setInterval(function(){var gp=getPad();if(gp){if(gp.id!==lastPadId){lastPadId=gp.id;padStatus('GAMEPAD: '+gp.id)}gamepadConnected=true;updateSticks(gp)}else if(gamepadConnected||lastPadId){gamepadConnected=false;lastPadId=null;padStatus('No gamepad detected — naciśnij dowolny przycisk na padzie. (Linux: sudo usermod -aG input $USER, potem wyloguj/zaloguj)')}},50);
 })();
 </script>
     <script src="/tools/theme.js"></script>
