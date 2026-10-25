@@ -24,7 +24,15 @@
 
 ```bash
 python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
+cd backend && ../.venv/bin/python main.py
+```
+
+Albo, jeśli masz zainstalowany arek-bootstrap (z ~/Projekty/Inne/arek-bootstrap):
+
+```bash
+arek-bootstrap --install   # wykryje Python, utworzy .venv, zainstaluje deps
 cd backend && ../.venv/bin/python main.py
 ```
 
