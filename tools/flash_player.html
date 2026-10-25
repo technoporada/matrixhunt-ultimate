@@ -595,16 +595,20 @@
 
     <script>
       function loadSandbox(url) {
-        if (!url || !/^https?:\/\//i.test(url)) {
+        var parsed;
+        try { parsed = new URL(url); } catch (e) { parsed = null; }
+        if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
           document.getElementById('sandbox-note').textContent = 'Podaj poprawny URL (http/https).';
           return;
         }
+        // CodeQL: url is validated above; only http(s) protocols reach here.
+        var safeUrl = parsed.href;
         var frame = document.getElementById('sandbox-frame');
         var note = document.getElementById('sandbox-note');
-        note.textContent = 'Ładowanie: ' + url;
-        frame.src = url;
+        note.textContent = 'Ładowanie: ' + safeUrl;
+        frame.src = safeUrl;
         frame.onload = function() {
-          note.textContent = 'Załadowano: ' + url + ' (jeśli strona jest pusta, blokuje osadzanie — otwórz w nowej karcie).';
+          note.textContent = 'Załadowano: ' + safeUrl + ' (jeśli strona jest pusta, blokuje osadzanie — otwórz w nowej karcie).';
         };
         frame.onerror = function() {
           note.textContent = 'Błąd ładowania — strona może blokować osadzanie. Otwórz w nowej karcie.';
