@@ -3,288 +3,360 @@
   "title": "Dota 2",
   "url": "https://store.steampowered.com/app/570",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Team Fortress 2",
   "url": "https://store.steampowered.com/app/440",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Warframe",
   "url": "https://store.steampowered.com/app/230410",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Path of Exile",
   "url": "https://store.steampowered.com/app/238960",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Counter-Strike 2",
   "url": "https://store.steampowered.com/app/730",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Apex Legends™",
   "url": "https://store.steampowered.com/app/1172470",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "PUBG: BATTLEGROUNDS",
   "url": "https://store.steampowered.com/app/578080",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Destiny 2",
   "url": "https://store.steampowered.com/app/1085660",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Lost Ark",
   "url": "https://store.steampowered.com/app/1599340",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Overwatch®",
   "url": "https://store.steampowered.com/app/2357570",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Marvel Rivals",
   "url": "https://store.steampowered.com/app/2767030",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Delta Force",
   "url": "https://store.steampowered.com/app/2507950",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "FragPunk",
   "url": "https://store.steampowered.com/app/2943650",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "The Sims™ 4",
   "url": "https://store.steampowered.com/app/1222670",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "eFootball™",
   "url": "https://store.steampowered.com/app/1665460",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Crab Game",
   "url": "https://store.steampowered.com/app/1782210",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Stumble Guys",
   "url": "https://store.steampowered.com/app/1677740",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Halo Infinite",
   "url": "https://store.steampowered.com/app/1240440",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "STAR WARS™: The Old Republic™",
   "url": "https://store.steampowered.com/app/1286830",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Guild Wars 2®",
   "url": "https://store.steampowered.com/app/1284210",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "EVE Online",
   "url": "https://store.steampowered.com/app/8500",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Neverwinter",
   "url": "https://store.steampowered.com/app/109600",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Star Trek Online",
   "url": "https://store.steampowered.com/app/9900",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "DC Universe™ Online",
   "url": "https://store.steampowered.com/app/24200",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "PlanetSide 2",
   "url": "https://store.steampowered.com/app/218230",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "SMITE®",
   "url": "https://store.steampowered.com/app/386360",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Brawlhalla",
   "url": "https://store.steampowered.com/app/291550",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "THE FINALS",
   "url": "https://store.steampowered.com/app/2073850",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Once Human",
   "url": "https://store.steampowered.com/app/2139460",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "War Thunder",
   "url": "https://store.steampowered.com/app/236390",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Totally Accurate Battlegrounds",
   "url": "https://store.steampowered.com/app/823130",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "VRChat",
   "url": "https://store.steampowered.com/app/438100",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Enlisted",
   "url": "https://store.steampowered.com/app/2051620",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:steam",
   "source": "SeedCatalog",
   "category": "games",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "League of Legends",
   "url": "https://www.leagueoflegends.com/en-us/",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:page-check",
   "source": "SeedCatalog",
   "category": "moba",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Valorant",
   "url": "https://playvalorant.com/en-us/",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:page-check",
   "source": "SeedCatalog",
   "category": "shooter",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  },
  {
   "title": "Roblox",
   "url": "https://www.roblox.com/",
   "price": "Free",
+  "price_claim": "Free",
+  "price_source": "api:page-check",
   "source": "SeedCatalog",
   "category": "social",
-  "description": "Permanently free-to-play title (seed catalog)."
+  "description": "Permanently free title (seed catalog)."
  }
 ]
