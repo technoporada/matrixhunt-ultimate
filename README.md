@@ -4,7 +4,7 @@
 > czyści strony z reklam i trackerów. Zero chmury, zero CDN — React, Babel i Ruffle
 > są zvendorowane, baza to lokalny SQLite.
 
-`Python 3.12 · FastAPI · SQLite (WAL) · 46 tras API · 105 testów przechodzi (3 pominięte bez node) · offline-first`
+`Python 3.12 · FastAPI · SQLite (WAL) · 46 tras API · 105 testów przechodzi (6 pominiętych) · offline-first`
 
 ## Spis treści
 
@@ -167,8 +167,8 @@ przy żywym błędzie (`Deal.price` domyślnie `"Free"`), dopisaliśmy testy, kt
 backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db /muzeum + skrypty (build, smoke, skan)
-data/               # retro.json, bookmarks.json, seed_offers.json (36 zweryfikowanych tytułów F2P)
-tests/              # 3 pliki, 105 testów (wszystkie przechodzą z serwerem; 3 pomija się bez node)
+data/               # retro.json, bookmarks.json, seed_offers.json (pusty)
+tests/              # 3 pliki, 105 testów (wszystkie przechodzą z serwerem; 6 pomija się bez serwera)
 ```
 
 Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,
@@ -179,37 +179,11 @@ Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,
 - GOG zwykle zwraca 0 — endpoint nie ma filtra darmowych; giveawaye wpadają parę razy do roku.
 - itch.io zaparkowany (parser kłamał `price="Free"`).
 - DLsite odrzucony jako źródło: sklep w większości 18+, brak publicznego API, gry jako `.exe`.
-- `seed_offers.json`: 36 zweryfikowanych tytułów F2P (Steam API), ładuje się przy pustej bazie.
+- `seed_offers.json` pusty — `load_seed_catalog()` nie dokłada nic.
 - `.app_settings.json` jawny (`PLAIN:`), gdy vault zablokowany.
 - Proxy nieprzetestowane z prawdziwym logowaniem do sklepu; pad bez testów na sprzęcie.
 - `vault.unlock()` bez blokady, `write_bytes` nieatomowy (do poprawy).
 - Historia: proxy zwracało kiedyś 403 na 3 sklepach (niezbadane, do powtórzenia).
-
-## 10a. Self-hosting (opcjonalne)
-
-MatrixHunt to aplikacja local-first. Jeśli chcesz ją wystawić (demo, self-hosting)
-bez ujawniania IP:
-
-- **Cloudflare Tunnel** + **tryb read-only**:
-  ```bash
-  MH_PUBLIC=1 MH_HOST=0.0.0.0 ./bootstrap.sh   # zablokuj zapisy/scrapowanie
-  ./tools/cloudflared_setup.sh matrixhunt.twojadomena.pl
-  ```
-  Włącz **Cloudflare Access** (Zero Trust) — bez tego każdy kto zna URL ma dostęp.
-- **Tailscale** (zalecane dla użytku prywatnego): mesh VPN, brak publicznego URL.
-- **IP podczas scrapowania**: sklepy widzą Twoje IP — włącz tryb Tor w ustawieniach
-  lub użyj upstream proxy (`socks5h://127.0.0.1:9050`).
-
-Szczegóły: [SECURITY.md](SECURITY.md).
-
-## 10b. Autor i podziękowania
-
-Projekt stworzony przez **Arkadiusz Slowik** (CC BY-NC-SA 4.0).
-
-Część kodu i poprawek (sanityzacja, testy niezmienników, audyt bezpieczeństwa,
-seed catalog, CI, bootstrap) była pisana z pomocą **AI** (Claude / Anthropic) —
-traktuj to jako narzędzie, nie autora. Cała odpowiedzialność za kod spoczywa
-na autorze.
 
 ## 11. Licencja
 

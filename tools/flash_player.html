@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
-    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'night')}catch(e){document.documentElement.setAttribute('data-theme','night')}</script>
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'matrix')}catch(e){document.documentElement.setAttribute('data-theme','matrix')}</script>
 <title>MATRIX FLASH PLAYER // RUFFLE WASM</title>
 <!-- Ruffle 0.7.1 zvendorowane lokalnie (tools/../frontend/vendor/ruffle/):
      zero zapytań do CDN, player działa offline w tej samej karcie. -->
@@ -567,54 +567,6 @@
   };
 })();
 </script>
-
-    <!-- Pancerny viewer (sandboxed iframe) -->
-    <div style="max-width:900px;margin:20px auto;padding:15px;border:1px solid var(--border);background:var(--card);">
-      <h3 style="color:var(--green);margin-bottom:10px;">PANCERNY VIEWER (sandboxed iframe)</h3>
-      <p style="font-size:0.8em;opacity:0.7;margin-bottom:10px;">
-        Strona ładuje się w izolowanej ramce (sandbox). Nie ma dostępu do systemu plików,
-        nie może pobierać plików, otwierać popupów ani manipulować formularzami.
-        Niektóre strony blokują osadzanie (X-Frame-Options) — wtedy otwórz w nowej karcie.
-      </p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <button class="btn" onclick="loadSandbox('https://flashpointarchive.org')">Flashpoint</button>
-        <button class="btn" onclick="loadSandbox('https://archive.org/details/flash_games')">Internet Archive</button>
-        <button class="btn" onclick="loadSandbox('https://www.newgrounds.com/games')">Newgrounds</button>
-        <button class="btn" onclick="loadSandbox('https://www.kongregate.com/games')">Kongregate</button>
-        <button class="btn" onclick="loadSandbox('https://armorgames.com')">Armor Games</button>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <input type="text" id="sandbox-url" placeholder="https://..." style="flex:1;padding:6px 10px;background:var(--card);border:1px solid var(--border);color:var(--green);font-family:inherit;font-size:0.85em;">
-        <button class="btn" onclick="loadSandbox(document.getElementById('sandbox-url').value)">Załaduj</button>
-        <button class="btn" onclick="document.getElementById('sandbox-frame').src='about:blank'">Wyczyść</button>
-      </div>
-      <iframe id="sandbox-frame" sandbox="allow-scripts" allow="gamepad" loading="lazy" referrerpolicy="no-referrer"
-        style="width:100%;height:500px;border:1px solid var(--border);background:#000;"></iframe>
-      <p id="sandbox-note" style="font-size:0.75em;opacity:0.6;margin-top:8px;"></p>
-    </div>
-
-    <script>
-      function loadSandbox(url) {
-        var parsed;
-        try { parsed = new URL(url); } catch (e) { parsed = null; }
-        if (!parsed || (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')) {
-          document.getElementById('sandbox-note').textContent = 'Podaj poprawny URL (http/https).';
-          return;
-        }
-        // CodeQL: url is validated above; only http(s) protocols reach here.
-        var safeUrl = parsed.href;
-        var frame = document.getElementById('sandbox-frame');
-        var note = document.getElementById('sandbox-note');
-        note.textContent = 'Ładowanie: ' + safeUrl;
-        frame.src = safeUrl;
-        frame.onload = function() {
-          note.textContent = 'Załadowano: ' + safeUrl + ' (jeśli strona jest pusta, blokuje osadzanie — otwórz w nowej karcie).';
-        };
-        frame.onerror = function() {
-          note.textContent = 'Błąd ładowania — strona może blokować osadzanie. Otwórz w nowej karcie.';
-        };
-      }
-    </script>
     <script src="/tools/theme.js"></script>
     <script src="/tools/api.js"></script>
     <script src="/tools/lang.js"></script>

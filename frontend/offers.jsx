@@ -70,7 +70,7 @@
                 try { localStorage.setItem('mh_nsfw', 'true'); } catch {}
                 setShowAgeGate(false);
             }, []);
-            const [theme, setTheme] = useState(() => (window.mhTheme ? window.mhTheme.get() : 'night'));
+            const [theme, setTheme] = useState(() => (window.mhTheme ? window.mhTheme.get() : 'matrix'));
             const [lang, setLang] = useState(() => (window.mhLang ? window.mhLang.get() : 'en'));
             // Strings come from tools/lang.js so the dictionary lives in one place.
         const T = new Proxy({}, { get: function (_, k) { return T_('dash.' + k, k); } });
