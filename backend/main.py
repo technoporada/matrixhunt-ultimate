@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -1435,8 +1436,8 @@ async def rss_feed():
         session.close()
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app):
     # CORS must be pinned to the port we actually listen on, and it has to
     # happen for EVERY launch method. It used to run only under
     # `python main.py`, so `uvicorn main:app` - the documented FastAPI way -
@@ -1484,6 +1485,10 @@ async def startup():
         session.close()
     bound = getattr(app.state, "port", None) or 8000
     print(f"MatrixHunt Ultimate ready on http://localhost:{bound}")
+    yield
+
+
+app.router.lifespan_context = lifespan
 
 
 def probe_app(port):
