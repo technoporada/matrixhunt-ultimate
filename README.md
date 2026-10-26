@@ -185,7 +185,24 @@ Runtime (gitignorowane, nie w repo): `.venv/`, `matrixhunt.db*`, `.cookies/`,
 - `vault.unlock()` bez blokady, `write_bytes` nieatomowy (do poprawy).
 - Historia: proxy zwracało kiedyś 403 na 3 sklepach (niezbadane, do powtórzenia).
 
-## 10a. Autor i podziękowania
+## 10a. Self-hosting (opcjonalne)
+
+MatrixHunt to aplikacja local-first. Jeśli chcesz ją wystawić (demo, self-hosting)
+bez ujawniania IP:
+
+- **Cloudflare Tunnel** + **tryb read-only**:
+  ```bash
+  MH_PUBLIC=1 MH_HOST=0.0.0.0 ./bootstrap.sh   # zablokuj zapisy/scrapowanie
+  ./tools/cloudflared_setup.sh matrixhunt.twojadomena.pl
+  ```
+  Włącz **Cloudflare Access** (Zero Trust) — bez tego każdy kto zna URL ma dostęp.
+- **Tailscale** (zalecane dla użytku prywatnego): mesh VPN, brak publicznego URL.
+- **IP podczas scrapowania**: sklepy widzą Twoje IP — włącz tryb Tor w ustawieniach
+  lub użyj upstream proxy (`socks5h://127.0.0.1:9050`).
+
+Szczegóły: [SECURITY.md](SECURITY.md).
+
+## 10b. Autor i podziękowania
 
 Projekt stworzony przez **Arkadiusz Slowik** (CC BY-NC-SA 4.0).
 

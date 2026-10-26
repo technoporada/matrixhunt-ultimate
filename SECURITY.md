@@ -54,6 +54,30 @@ Pobieranie i uruchamianie gier to Twoja odpowiedzialność — pobieraj tylko z 
 źródeł (Steam, Epic, GOG, itch.io). Aplikacja ostrzega, że żadna oferta nie ma
 potwierdzonej ceny z API sklepu.
 
+### Wystawianie publiczne (opcjonalne, zaawansowane)
+
+MatrixHunt to aplikacja **local-first** (127.0.0.1). Wystawianie jej publicznie
+zmienia model bezpieczeństwa. Jeśli chcesz to zrobić (np. demo, self-hosting):
+
+1. **Cloudflare Tunnel** — ukrywa IP, brak port forwarding:
+   ```bash
+   ./tools/cloudflared_setup.sh matrixhunt.twojadomena.pl
+   ```
+2. **Tryb read-only** — zablokuj zapisy i scrapowanie:
+   ```bash
+   MH_PUBLIC=1 MH_HOST=0.0.0.0 ./bootstrap.sh
+   ```
+   W tym trybie endpointy POST/PUT/DELETE na `/api/*` zwracają 403.
+3. **Cloudflare Access (Zero Trust)** — OBOWIĄZKOWE. Bez tego każdy kto zna URL
+   ma dostęp. Ustaw politykę Allow → Emails → Twoje konto.
+4. **IP podczas scrapowania** — sklepy widzą Twoje IP. Włącz tryb Tor w ustawieniach
+   (Settings → Tor) lub użyj upstream proxy (`socks5h://127.0.0.1:9050`).
+5. **Alternatywa — Tailscale** (mesh VPN, darmowy, 100 urządzeń): brak publicznego
+   URL, brak ataków z internetu. Zalecane zamiast Cloudflare Tunnel dla
+   użytku prywatnego.
+
+**Nie wystawiaj MatrixHunt publicznie bez Cloudflare Access lub Tailscale.**
+
 ### Weryfikacja
 
 ```bash
