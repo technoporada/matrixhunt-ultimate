@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
-    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'night')}catch(e){document.documentElement.setAttribute('data-theme','night')}</script>
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'matrix')}catch(e){document.documentElement.setAttribute('data-theme','matrix')}</script>
     <title>MATRIXHUNT // MUZEUM OKAZÓW</title>
-    <link rel="stylesheet" href="/tools/theme.css">
     <style>
+        :root { --green:#0f0; --dim:rgba(0,255,0,0.15); --bg:#000;
+                --card:rgba(0,20,0,0.85);
+                --glow:0 0 10px #0f0,0 0 20px rgba(0,255,0,0.3);
+                --font:'Courier New',monospace; }
         * { margin:0; padding:0; box-sizing:border-box; }
         body { background:var(--bg); color:var(--green); font-family:var(--font); min-height:100vh; }
         canvas#matrix-bg { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
@@ -40,18 +43,6 @@
     <div class="scanlines"></div>
     <div class="container">
         <header><h1>MUZEUM OKAZÓW</h1></header>
-        <nav style="text-align:center;margin:10px 0;font-size:0.85em;">
-            <a href="/">HOME</a> |
-            <a href="/offers">OFERTY</a> |
-            <a href="/view">VIEW</a> |
-            <a href="/db">DB</a> |
-            <a href="/retro">RETRO</a> |
-            <a href="/pad">PAD</a> |
-            <a href="/wiki">WIKI</a> |
-            <a href="/bookmarks">BOOKMARKS</a> |
-            <a href="/flash">FLASH</a> |
-            <a href="/uwagi">UWAGI</a>
-        </nav>
         <p class="sub">
             Lokalna kolekcja ataków złapanych przez sanityzer podczas czytania cudzych treści
             (Reddit i inne źródła). Nic tu nie jest wykonywane ani wysyłane — to dowodownia,

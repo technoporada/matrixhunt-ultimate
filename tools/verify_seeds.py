@@ -49,10 +49,8 @@ for appid in STEAM_IDS:
         print(f"  [{'OK ' if (info.get('success') and free) else 'DROP'}] {appid} {name}")
         if info.get("success") and free:
             kept.append({"title": name, "url": f"https://store.steampowered.com/app/{appid}",
-                         "price": "Free", "price_claim": "Free",
-                         "price_source": "api:steam",
-                         "source": "SeedCatalog", "category": "games",
-                         "description": "Permanently free title (seed catalog)."})
+                         "price": "Free", "source": "SeedCatalog", "category": "games",
+                         "description": "Permanently free-to-play title (seed catalog)."})
     except Exception as e:
         print(f"  [ERR ] {appid} {str(e)[:60]}")
     time.sleep(0.4)
@@ -65,9 +63,8 @@ for title, url, category, marker in PAGES:
         print(f"  [{'OK ' if ok else 'DROP'}] {title} ({len(body)}B)")
         if ok:
             kept.append({"title": title, "url": url, "price": "Free",
-                         "price_claim": "Free", "price_source": "api:page-check",
                          "source": "SeedCatalog", "category": category,
-                         "description": "Permanently free title (seed catalog)."})
+                         "description": "Permanently free-to-play title (seed catalog)."})
     except Exception as e:
         print(f"  [ERR ] {title} {str(e)[:60]}")
     time.sleep(0.5)
