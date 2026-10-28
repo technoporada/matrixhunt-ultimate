@@ -1,24 +1,27 @@
 <!DOCTYPE html>
-<html lang="pl" data-theme="dark">
+<html lang="pl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
+<script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'night')}catch(e){document.documentElement.setAttribute('data-theme','night')}</script>
 <title>Uwagi — MatrixHunt Ultimate</title>
+<link rel="stylesheet" href="/tools/theme.css">
 <script src="/tools/theme.js"></script>
 <style>
-  body { background:#0a0a0a; color:#c8f0c8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  body { background:var(--bg); color:var(--green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
          margin:0; padding:32px 20px; line-height:1.85; }
   .wrap { max-width:70ch; margin:0 auto; }
   nav { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:34px; padding-bottom:14px;
-        border-bottom:1px solid #1a3a1a; }
-  nav a { color:#0f0; text-decoration:none; font-size:0.85em; letter-spacing:1px;
-          border:1px solid #1a3a1a; padding:6px 12px; }
-  nav a:hover { background:#0f0; color:#0a0a0a; }
-  nav a.on { border-color:#0f0; }
+        border-bottom:1px solid var(--border); }
+  nav a { color:var(--green); text-decoration:none; font-size:0.85em; letter-spacing:1px;
+          border:1px solid var(--border); padding:6px 12px; }
+  nav a:hover { background:var(--green); color:var(--bg); }
+  nav a.on { border-color:var(--green); }
   h1 { font-size:1.15em; letter-spacing:2px; margin:0 0 6px; }
   .lead { opacity:0.55; font-size:0.78em; margin-bottom:34px; }
   p { font-size:0.85em; opacity:0.78; margin:0 0 14px; }
-  a.back { display:inline-block; margin-top:34px; color:#0f0; font-size:0.78em; }
+  a.back { display:inline-block; margin-top:34px; color:var(--green); font-size:0.78em; }
 </style>
 </head>
 <body>

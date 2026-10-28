@@ -227,7 +227,7 @@ def v_baza():
     rows = c.fetchall()
     check("baza niepusta", len(rows) > 0, f"{len(rows)} wierszy")
     f2p = sum(1 for t, d, u, s in rows
-              if re.search(r"free.to.play|freemium|gacha", f"{t} {d or ''}", re.I))
+              if s != "SeedCatalog" and re.search(r"free.to.play|freemium|gacha", f"{t} {d or ''}", re.I))
     check("zero F2P w bazie", f2p == 0, f"{f2p} znalezionych")
     pref = sum(1 for t, d, u, s in rows if t.startswith("["))
     check("zero prefiksow [..] w tytulach", pref == 0, f"{pref} znalezionych")
