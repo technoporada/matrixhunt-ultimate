@@ -10,7 +10,7 @@
     var STORAGE_KEY = 'mh_theme';
     var THEMES = ['matrix', 'night', 'day'];
     var LABELS = { matrix: '◐ MATRIX', night: '● NIGHT', day: '○ DAY' };
-    var DEFAULT_THEME = 'matrix';
+    var DEFAULT_THEME = 'night';
 
     function isValid(theme) {
         return THEMES.indexOf(theme) !== -1;

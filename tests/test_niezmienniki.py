@@ -157,6 +157,9 @@ def conn():
     if not DB.exists():
         pytest.skip("brak bazy")
     c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    if c.execute("SELECT COUNT(*) FROM offers").fetchone()[0] == 0:
+        c.close()
+        pytest.skip("baza pusta (brak seedów)")
     yield c
     c.close()
 
@@ -173,6 +176,8 @@ def test_D2_zero_f2p(conn):
     from scrapers.base import is_f2p_or_addon
     zle = []
     for t, d, s in conn.execute("SELECT title, description, source FROM offers"):
+        if s == "SeedCatalog":
+            continue   # seed catalog to swiadomie F2P (permanently free); D2 dotyczy scrapów
         if is_f2p_or_addon(t or "") or is_f2p_or_addon(d or ""):
             zle.append(f"{s}: {t}")
     assert not zle, f"F2P/DLC w bazie: {zle[:8]}"
