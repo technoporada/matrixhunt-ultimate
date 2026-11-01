@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="no-referrer">
     <script>try{var _l=localStorage.getItem('mh_lang');if(_l!=='pl'&&_l!=='en'){_l=(navigator.language||'en').toLowerCase().indexOf('pl')===0?'pl':'en';}document.documentElement.setAttribute('data-lang',_l);}catch(e){document.documentElement.setAttribute('data-lang','en');}</script>
-    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'matrix')}catch(e){document.documentElement.setAttribute('data-theme','matrix')}</script>
+    <script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('mh_theme')==='night'||localStorage.getItem('mh_theme')==='day'?localStorage.getItem('mh_theme'):'night')}catch(e){document.documentElement.setAttribute('data-theme','night')}</script>
     <title>MATRIXHUNT // RETRO HUB</title>
     <style>
         :root {
@@ -673,33 +673,40 @@
 
         // Flash legendary games
         const flashGames = [
-            { title: "Happy Wheels", cat: "physics" },
-            { title: "Line Rider", cat: "puzzle" },
-            { title: "N (The Way of the Ninja)", cat: "platformer" },
-            { title: "QWOP", cat: "sports" },
-            { title: "Electricman 2", cat: "action" },
-            { title: "Bloons Tower Defense 5", cat: "strategy" },
-            { title: "Fancy Pants Adventure", cat: "platformer" },
-            { title: "The Impossible Game", cat: "rhythm" },
-            { title: "Interactive Buddy", cat: "sandbox" },
-            { title: "Ultimate Custom Night", cat: "horror" },
-            { title: "Learn to Fly", cat: "arcade" },
-            { title: "Age of War", cat: "strategy" },
-            { title: "Desktop Tower Defense", cat: "strategy" },
-            { title: "Meat Boy (original)", cat: "platformer" },
-            { title: "Samorost", cat: "puzzle" },
-            { title: "Machinarium", cat: "adventure" },
-            { title: "Sonny", cat: "rpg" },
-            { title: "Dad 'n Me", cat: "action" },
-            { title: "Crush the Castle", cat: "physics" },
-            { title: "Thing-Thing", cat: "action" }
+            { title: "Happy Wheels", cat: "physics", q: "Happy Wheels" },
+            { title: "Line Rider", cat: "puzzle", q: "Line Rider" },
+            { title: "N (The Way of the Ninja)", cat: "platformer", q: "N The Way of the Ninja" },
+            { title: "QWOP", cat: "sports", q: "QWOP" },
+            { title: "Electricman 2", cat: "action", q: "Electricman 2" },
+            { title: "Bloons Tower Defense 5", cat: "strategy", q: "Bloons Tower Defense 5" },
+            { title: "Fancy Pants Adventure", cat: "platformer", q: "Fancy Pants Adventure" },
+            { title: "The Impossible Game", cat: "rhythm", q: "The Impossible Game" },
+            { title: "Interactive Buddy", cat: "sandbox", q: "Interactive Buddy" },
+            { title: "Ultimate Custom Night", cat: "horror", q: "Ultimate Custom Night" },
+            { title: "Learn to Fly", cat: "arcade", q: "Learn to Fly" },
+            { title: "Age of War", cat: "strategy", q: "Age of War" },
+            { title: "Desktop Tower Defense", cat: "strategy", q: "Desktop Tower Defense" },
+            { title: "Meat Boy (original)", cat: "platformer", q: "Meat Boy original flash" },
+            { title: "Samorost", cat: "puzzle", q: "Samorost" },
+            { title: "Machinarium", cat: "adventure", q: "Machinarium" },
+            { title: "Sonny", cat: "rpg", q: "Sonny" },
+            { title: "Dad 'n Me", cat: "action", q: "Dad n Me" },
+            { title: "Crush the Castle", cat: "physics", q: "Crush the Castle" },
+            { title: "Thing-Thing", cat: "action", q: "Thing Thing" }
         ];
         const fg = document.getElementById('flash-grid');
         flashGames.forEach(g => {
-            fg.innerHTML += '<div class="flash-card">' +
-                '<h3>' + g.title + '</h3>' +
+            var q = encodeURIComponent(g.q);
+            var card = document.createElement('div');
+            card.className = 'flash-card';
+            card.style.cursor = 'pointer';
+            card.innerHTML = '<h3>' + g.title + '</h3>' +
                 '<div class="cat">CATEGORY: ' + g.cat.toUpperCase() + '</div>' +
-                '</div>';
+                '<div style="font-size:0.7em;margin-top:6px;opacity:0.7;">Szukaj w Flashpoint &raquo;</div>';
+            card.addEventListener('click', function() {
+                window.open('https://flashpointarchive.org/?s=' + q, '_blank', 'noopener');
+            });
+            fg.appendChild(card);
         });
 
         // ===== CAN YOU EMULATE IT? =====

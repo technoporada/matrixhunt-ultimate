@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -56,7 +57,14 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-MH-Token"],
 )
 
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+# Tryb publiczny (MH_PUBLIC=1): aplikacja tylko do odczytu — blokuje zapisy,
+# scrapowanie i zmiany stanu. Przydatne przy wystawianiu przez Cloudflare
+# Tunnel, żeby nie udostępniać jednoosobowej aplikacji całemu internetowi.
+import os as _os
+_MH_PUBLIC = _os.environ.get("MH_PUBLIC", "").strip() in ("1", "true", "yes")
+
+if _MH_PUBLIC:
+    print("[MH_PUBLIC] tryb tylko-do-odczytu: zapisy i scrapowanie zablokowane")
 app.mount("/tools", StaticFiles(directory=str(TOOLS_DIR)), name="tools")
 # Ruffle self-hosted (.wasm) musi mieć application/wasm, inaczej przeglądarka
 # odmawia inicjalizacji. Na części systemów mimetypes nie zna .wasm.
@@ -176,7 +184,11 @@ async def _api_guard(request, call_next):
         simply gets no CORS header and the browser blocks the read.
     """
     if request.url.path.startswith("/api/"):
-        if not _is_loopback_host(request.headers.get("host")):
+        # Tryb publiczny (MH_PUBLIC=1): aplikacja tylko-do-odczytu.
+        if _MH_PUBLIC and request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            return JSONResponse({"error": "read-only mode (MH_PUBLIC=1)"}, status_code=403)
+        # Host check: loopback w trybie lokalnym; w publicznym (tunel) Host to domena
+        if not _MH_PUBLIC and not _is_loopback_host(request.headers.get("host")):
             return JSONResponse({"error": "loopback only"}, status_code=403)
         # CSRF hardening for the proxy endpoints: a cross-origin page may
         # otherwise trigger a server-side fetch (with the user's stored
@@ -1435,8 +1447,8 @@ async def rss_feed():
         session.close()
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app):
     # CORS must be pinned to the port we actually listen on, and it has to
     # happen for EVERY launch method. It used to run only under
     # `python main.py`, so `uvicorn main:app` - the documented FastAPI way -
@@ -1484,6 +1496,10 @@ async def startup():
         session.close()
     bound = getattr(app.state, "port", None) or 8000
     print(f"MatrixHunt Ultimate ready on http://localhost:{bound}")
+    yield
+
+
+app.router.lifespan_context = lifespan
 
 
 def probe_app(port):
@@ -1564,9 +1580,11 @@ def _lock_cors_to_port(port):
 
 
 if __name__ == "__main__":
+    import os as _os
     import uvicorn
+    _host = _os.environ.get("MH_HOST", "127.0.0.1").strip() or "127.0.0.1"
     port = find_port()
     app.state.port = port
     _lock_cors_to_port(port)
-    print(f"MatrixHunt Ultimate ready on http://localhost:{port}")
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    print(f"MatrixHunt Ultimate ready on http://{_host}:{port}")
+    uvicorn.run(app, host=_host, port=port)
