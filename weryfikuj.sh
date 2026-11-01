@@ -1,32 +1,45 @@
 #!/usr/bin/env bash
-# Jednorazowy skrypt weryfikacyjny. Uruchom ./weryfikuj.sh
-cd "$(dirname "$0")" || exit 1
+# Przenośny skrypt weryfikacyjny. Uruchom ./weryfikuj.sh
+# Bez twardych ścieżek /home/... — działa z dowolnego klona na dowolnym koncie.
+set -u
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+RUN_DIR="${MH_RUN_DIR:-${TMPDIR:-/tmp}/matrixhunt-${USER:-u}}"
+mkdir -p "$RUN_DIR"
+LOG="$RUN_DIR/vp.log"
+PORT_FILE="$RUN_DIR/port.txt"
+PID_FILE="$RUN_DIR/vp.pid"
 
-A=/home/h5n1/Pulpit/katalog/Documents/tmpopencode/matrixhunt-ultimate
-B=/home/h5n1/Pulpit/katalog/Documents/matrixhunt-ultimate
+# Nie zabijamy cudzych procesów. Sprzątamy tylko poprzednią instancję
+# wystartowaną przez ten skrypt (PID zapisany w $RUN_DIR/vp.pid).
+if [ -f "$PID_FILE" ]; then
+  OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
+  if [ -n "${OLD_PID:-}" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+    kill "$OLD_PID" 2>/dev/null || true
+    sleep 2
+  fi
+  rm -f "$PID_FILE"
+fi
 
-# port zajety przez inna aplikacje? znajdz wlasny
-for p in $(ss -tlnp 2>/dev/null | grep -oE '127.0.0.1:80[0-9]+.*pid=[0-9]+' | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u); do
-  kill "$p" 2>/dev/null
-done
-sleep 3
+: > "$LOG"
+( cd "$ROOT/backend" && setsid "$ROOT/.venv/bin/python" main.py > "$LOG" 2>&1 < /dev/null & echo $! > "$PID_FILE" )
 
-mkdir -p /tmp/opencode
-( cd "$B/backend" && setsid ../.venv/bin/python main.py > /tmp/opencode/vp.log 2>&1 < /dev/null & )
-
-for i in $(seq 1 40); do
+for _ in $(seq 1 40); do
   sleep 1
-  grep -q "Uvicorn running" /tmp/opencode/vp.log 2>/dev/null && break
+  if grep -q "Uvicorn running\|MatrixHunt Ultimate ready" "$LOG" 2>/dev/null; then
+    break
+  fi
 done
 
-PORT=$(grep -oE "127\.0\.0\.1:[0-9]+" /tmp/opencode/vp.log 2>/dev/null | head -1 | cut -d: -f2)
-echo "Serwer na porcie: ${PORT:-8000}"
+PORT=$(grep -oE "127\.0\.0\.1:[0-9]+" "$LOG" 2>/dev/null | head -1 | cut -d: -f2)
+PORT="${PORT:-8000}"
+echo "$PORT" > "$PORT_FILE"
+echo "Serwer na porcie: $PORT (log: $LOG)"
 
-"$B/.venv/bin/python" "$B/weryfikuj.py"
+MH_PORT="$PORT" MH_RUN_DIR="$RUN_DIR" "$ROOT/.venv/bin/python" "$ROOT/weryfikuj.py"
 RC=$?
 
 echo
-echo "Serwer zostawiony dzialajacy. Zatrzymanie:"
-echo "  kill \$(ss -tlnp 2>/dev/null | grep -oE '127.0.0.1:${PORT:-8000}.*pid=[0-9]+' | grep -oE 'pid=[0-9]+' | cut -d= -f2 | head -1)"
+echo "Serwer zostawiony dzialajacy (PID z $PID_FILE). Zatrzymanie:"
+echo "  kill \$(cat \"$PID_FILE\")"
 
 exit $RC

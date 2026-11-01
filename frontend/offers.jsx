@@ -3,43 +3,10 @@
   const NAV_L = { color:'#0f0', textDecoration:'none', fontSize:'0.72em', letterSpacing:1,
                  border:'1px solid var(--border)', padding:'6px 12px' };
 
-        // Matrix Rain
-        const matrixCanvas = document.getElementById('matrix-bg');
-        const ctx = matrixCanvas.getContext('2d');
-        function resizeCanvas() {
-            matrixCanvas.width = window.innerWidth;
-            matrixCanvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
-        const fontSize = 14;
-        let columns = Math.floor(matrixCanvas.width / fontSize);
-        let drops = new Array(columns).fill(1);
-        function drawMatrix() {
-            if (window.mhTheme && !window.mhTheme.isMatrix()) return;
-            ctx.fillStyle = 'rgba(0,0,0,0.05)';
-            ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
-            ctx.fillStyle = '#0f0';
-            ctx.font = fontSize + 'px monospace';
-            for (let i = 0; i < drops.length; i++) {
-                const text = chars[Math.floor(Math.random() * chars.length)];
-                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
-                    drops[i] = 0;
-                }
-                drops[i]++;
-            }
-        }
-        setInterval(drawMatrix, 50);
+        // Jeden deszcz z tools/site.js (było wklejone w 6 plików).
+        window.MH.matrixRain();
 
-        const SOURCES = ['ALL','GamerPower','Epic','Steam','GOG','Itch.io','IndieGala','FreeToGame','FreeSteamKeys','Nebula','SharewareOnSale','Humble','GameJolt','GiveawayRadar','DelistedSteam','Reddit'];
-
-    /* THEME_LABELS and DASH_STR were verbatim copies of the dictionaries in
-     * tools/theme.js and tools/lang.js. That made three sources of truth for
-     * the same strings and left all 17 dash.* keys defined in lang.js with
-     * zero readers. The helpers below read the shared modules instead, so
-     * adding a key once is enough. */
+    /* T_ czyta tools/lang.js, żeby słownik żył w jednym miejscu. */
     function T_(key, fallback) {
         try {
             if (window.mhLang && typeof window.mhLang.t === 'function') {
@@ -48,10 +15,6 @@
             }
         } catch (e) { /* lang.js not loaded yet */ }
         return fallback;
-    }
-    function themeLabel(theme) {
-        var labels = { matrix: '◐ MATRIX', night: '● NIGHT', day: '○ DAY' };
-        return labels[theme] || labels.matrix;
     }
 
     function App() {
@@ -100,7 +63,14 @@
                 });
             }, [offers, watchlist, watchMatch, isFresh]);
             const [nsfwMode, setNsfwMode] = useState(() => localStorage.getItem('mh_nsfw') === 'true');
-            const [theme, setTheme] = useState(() => (window.mhTheme ? window.mhTheme.get() : 'matrix'));
+            // Bramka wieku jak na dashboardzie: odblokowanie tylko przez modal 18+.
+            const [showAgeGate, setShowAgeGate] = useState(false);
+            const confirmAgeGate = useCallback(() => {
+                setNsfwMode(true);
+                try { localStorage.setItem('mh_nsfw', 'true'); } catch {}
+                setShowAgeGate(false);
+            }, []);
+            const [theme, setTheme] = useState(() => (window.mhTheme ? window.mhTheme.get() : 'night'));
             const [lang, setLang] = useState(() => (window.mhLang ? window.mhLang.get() : 'en'));
             // Strings come from tools/lang.js so the dictionary lives in one place.
         const T = new Proxy({}, { get: function (_, k) { return T_('dash.' + k, k); } });
@@ -108,6 +78,12 @@
                 try { return JSON.parse(localStorage.getItem('mh_favs') || '[]'); } catch { return []; }
             });
             const [toast, setToast] = useState(null);
+            // MUSI stać przed każdym useCallback, który wymienia showToast
+            // w deps — inaczej TDZ i cała strona pada na biało przy starcie.
+            const showToast = useCallback((msg) => {
+                setToast(msg);
+                setTimeout(() => setToast(null), 2500);
+            }, []);
             const [loading, setLoading] = useState(false);
             const [proxyOn, setProxyOn] = useState(true);
             const [cveQ, setCveQ] = useState('');
@@ -204,15 +180,12 @@
                 }
             }, [cveQ, lang]);
 
-            const showToast = useCallback((msg) => {
-                setToast(msg);
-                setTimeout(() => setToast(null), 2500);
-            }, []);
-
             const fetchData = useCallback(async () => {
                 setLoading(true);
                 try {
-                    const res = await fetch('/api/offers');
+                    // Treści 18+ schodzą z API tylko po odblokowaniu bramki wieku.
+                    const url = nsfwMode ? '/api/offers?nsfw=1' : '/api/offers';
+                    const res = await fetch(url);
                     if (res.ok) {
                         const data = await res.json();
                         setOffers(Array.isArray(data) ? data : data.offers || []);
@@ -227,7 +200,7 @@
                 } catch(e) {}
                 setLoading(false);
                 showToast('DATA SYNCHRONIZED');
-            }, [showToast]);
+            }, [showToast, nsfwMode]);
 
             const triggerScrape = useCallback(async () => {
                 setLoading(true);
@@ -331,15 +304,27 @@
                                      paddingBottom:10, borderBottom:'1px solid var(--border)'}}>
                             <a href="/"          style={NAV_L}>START</a>
                             <a href="/offers"    style={{...NAV_L, borderColor:'#0f0'}}>OFERTY</a>
-                            <a href="/pad"       style={NAV_L}>PAD</a>
+                            <a href="/view"      style={NAV_L}>VIEW</a>
+                            <a href="/db"        style={NAV_L}>DB</a>
                             <a href="/retro"     style={NAV_L}>RETRO</a>
+                            <a href="/pad"       style={NAV_L}>PAD</a>
                             <a href="/wiki"      style={NAV_L}>WIKI</a>
                             <a href="/bookmarks" style={NAV_L}>BOOKMARKS</a>
+                            <a href="/flash"     style={NAV_L}>FLASH</a>
+                            <a href="/uwagi"     style={NAV_L}>UWAGI</a>
                         </nav>
                         <h1>MATRIXHUNT ULTIMATE</h1>
                         <div
                             style={{fontSize:'0.7em', marginTop:8, cursor:'pointer', opacity: nsfwMode ? 1 : 0.4, letterSpacing:2}}
-                            onClick={() => { const v = !nsfwMode; setNsfwMode(v); localStorage.setItem('mh_nsfw', v); }}
+                            onClick={() => {
+                                if (nsfwMode) {
+                                    setNsfwMode(false);
+                                    try { localStorage.setItem('mh_nsfw', 'false'); } catch {}
+                                } else {
+                                    setShowAgeGate(true);
+                                }
+                            }}
+                            title={lang === 'pl' ? 'Treści 18+ (za bramką wieku)' : '18+ content (age-gated)'}
                         >
                             {nsfwMode ? T.nsfw_on : T.nsfw_off}
                         </div>
@@ -361,7 +346,7 @@
                     <div className="controls">
                         <div className="ctl-search">
                             <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
-                                {SOURCES.map(s => <option key={s} value={s}>{s === 'ALL' ? T.all : s}</option>)}
+                                {window.MH.SOURCES.map(s => <option key={s} value={s}>{s === 'ALL' ? T.all : s}</option>)}
                             </select>
                             <input
                                 ref={searchRef}
@@ -399,7 +384,7 @@
                         <div className="ctl-group">
                             <span className="ctl-label">{lang === 'pl' ? 'WIDOK' : 'VIEW'}</span>
                             <button onClick={() => window.mhTheme && window.mhTheme.cycle()} title="Cycle theme: matrix / night / day">
-                                {themeLabel(theme)}
+                                {window.MH.themeLabel(theme)}
                             </button>
                             <button onClick={() => window.mhLang && window.mhLang.toggle()} title="PL/EN">{lang === 'pl' ? 'PL ●' : 'EN ○'}</button>
                             <button onClick={toggleProxy} title="Route external links through the antysyf cleaner (viewer) or open them raw">
@@ -557,16 +542,50 @@
                     </div>
 
                     <footer>
-                          <div style={{fontSize:'0.7em', opacity:0.4}}>
+                        <a href="/">HOME</a>
+                        <a href="/offers">OFERTY</a>
+                        <a href="/view">VIEW</a>
+                        <a href="/db">DB</a>
+                        <a href="/retro">RETRO</a>
+                        <a href="/pad">PAD</a>
+                        <a href="/wiki">WIKI</a>
+                        <a href="/bookmarks">BOOKMARKS</a>
+                        <a href="/flash">FLASH</a>
+                        <a href="/uwagi">UWAGI</a>
+                        <div style={{fontSize:'0.7em', opacity:0.4, marginTop:'10px'}}>
                               MATRIXHUNT ULTIMATE v2.0 // License: CC BY-NC-SA 4.0 // Author: Arkadiusz Slowik<br />
                               This software is FREE. If someone is selling it, they are scammers.
-                          </div>
-                          <div style={{marginTop:'8px'}}>
-                              <a href="/uwagi" style={{fontSize:'0.66em', opacity:0.4}}>uwagi</a>
-                          </div>
-                      </footer>
+                           </div>
+                       </footer>
 
                     {toast && <div className="toast">{toast}</div>}
+
+                    {showAgeGate && (
+                        <div style={{position:'fixed', top:0, left:0, width:'100%', height:'100%',
+                                     background:'rgba(0,0,0,0.85)', zIndex:200,
+                                     display:'flex', alignItems:'center', justifyContent:'center'}}
+                             onClick={() => setShowAgeGate(false)}>
+                            <div style={{border:'2px solid var(--green)', background:'var(--card)',
+                                         padding:'30px', maxWidth:'420px', textAlign:'center'}}
+                                 onClick={e => e.stopPropagation()}>
+                                <div style={{fontSize:'2em'}}>🔞</div>
+                                <h3 style={{letterSpacing:3, margin:'10px 0'}}>
+                                    {lang === 'pl' ? 'TREŚCI 18+' : 'ADULT CONTENT'}
+                                </h3>
+                                <p style={{fontSize:'0.8em', opacity:0.8, marginBottom:'20px'}}>
+                                    {lang === 'pl'
+                                        ? 'Ta sekcja zawiera gry dla dorosłych. Potwierdź, że masz ukończone 18 lat.'
+                                        : 'This section lists adult games. Confirm you are 18 or older.'}
+                                </p>
+                                <button onClick={confirmAgeGate} style={{marginRight:'10px'}}>
+                                    {lang === 'pl' ? 'MAM 18+ — POKAŻ' : 'I AM 18+ — SHOW'}
+                                </button>
+                                <button onClick={() => setShowAgeGate(false)}>
+                                    {lang === 'pl' ? 'WRÓĆ' : 'GO BACK'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </>
             );
         }

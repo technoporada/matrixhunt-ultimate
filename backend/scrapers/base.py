@@ -160,7 +160,6 @@ DANGEROUS_EXT = (
 class Deal:
     title: str
     url: str
-<<<<<<< HEAD
     # price is the store's own figure when we asked it, and only then. Empty
     # means nobody measured it. price_claim is what the source stated,
     # price_source says which of the two it is: "api:steam" was read from the
@@ -170,9 +169,6 @@ class Deal:
     price: str = ""
     price_claim: str = None
     price_source: str = None
-=======
-    price: str = "Free"
->>>>>>> main
     original_price: str = ""
     category: str = "games"
     source: str = ""
@@ -186,6 +182,23 @@ class Deal:
     scraped_at: str = ""
 
     def __post_init__(self):
+        # Sanityzacja w JEDNYM miejscu, przez które przechodzi każdy scraper:
+        # neutralizuje ukryty tekst i wykrywa próby prompt-injection, ZANIM
+        # cokolwiek to przeczyta. Do bazy idzie tekst czysty, ale do muzeum
+        # okazów trafia próbka SUROWA (z zachowanym trikiem).
+        raw_title, raw_desc = self.title or "", self.description or ""
+        try:
+            from sanitize_text import sanitize_text
+            self.title, tf = sanitize_text(raw_title)
+            self.description, df = sanitize_text(raw_desc)
+            if tf or df:
+                import specimens
+                if tf:
+                    specimens.record_findings(self.source, "title", tf, raw_title)
+                if df:
+                    specimens.record_findings(self.source, "description", df, raw_desc)
+        except Exception:
+            pass
         if not self.id:
             self.id = hashlib.md5(f"{self.title}{self.url}{self.source}".encode()).hexdigest()[:12]
         if not self.scraped_at:
@@ -210,7 +223,6 @@ class BaseScraper(ABC):
     async def scrape(self) -> List[Deal]:
         pass
 
-<<<<<<< HEAD
     def listed_as_free(self, listing_path=""):
         """Cena zgłoszona przez stronę źródłową, niepotwierdzona w sklepie.
 
@@ -229,8 +241,6 @@ class BaseScraper(ABC):
             "price_source": f"listing:{self.base_url}{listing_path}",
         }
 
-=======
->>>>>>> main
     def clean_title(self, title: str) -> str:
         """Trim, collapse whitespace and drop store prefixes.
 

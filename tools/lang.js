@@ -66,6 +66,8 @@
             'viewer.antysyf': 'ANTYSYF ON',
             'viewer.original': 'OPEN ORIGINAL ↗',
             'viewer.nopage': 'NO PAGE: use /view?page=/wiki or /view?url=https://…',
+            'viewer.start': 'VIEWER',
+            'viewer.paste': 'PASTE A STORE URL',
 
             'db.sub': 'Read-only view of the app database. No SQLite tools needed. Writes are impossible.',
             'db.search_ph': 'SEARCH ALL COLUMNS... (Enter)',
@@ -129,6 +131,8 @@
             'viewer.antysyf': 'ANTYSYF WŁ.',
             'viewer.original': 'OTWÓRZ ORYGINAŁ ↗',
             'viewer.nopage': 'BRAK STRONY: użyj /view?page=/wiki lub /view?url=https://…',
+            'viewer.start': 'PRZEGLĄDARKA',
+            'viewer.paste': 'WKLEJ ADRES SKLEPU',
 
             'db.sub': 'Podgląd bazy aplikacji tylko do odczytu. Bez narzędzi SQLite. Zapis niemożliwy.',
             'db.search_ph': 'SZUKAJ WE WSZYSTKICH KOLUMNACH... (Enter)',

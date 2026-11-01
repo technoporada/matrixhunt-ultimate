@@ -18,10 +18,11 @@ removeparam and other advanced modifiers (counted, never silently half-met).
 import re
 import time
 import json
+import hashlib
 import threading
 from pathlib import Path
 from collections import deque, Counter
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 CACHE_DIR = Path(__file__).parent / ".filterlists"
 REFRESH_SECS = 24 * 3600
@@ -410,10 +411,98 @@ def get_engine():
         return eng
 
 
-def custom_engine(rules_text):
+CUSTOM_MAX_BYTES = 5 * 1024 * 1024
+
+
+def custom_file_id(url):
+    """Stabilny id pliku cache dla subskrybowanej listy (jak LISTS keys)."""
+    return "custom-" + hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
+
+
+def _safe_fetch(url, max_bytes=CUSTOM_MAX_BYTES, max_hops=5):
+    """Pobiera subskrybowaną listę z bramką SSRF na KAŻDYM hopie.
+
+    Ręczna pętla przekierowań: requests z allow_redirects=True poszłoby do
+    127.0.0.1 mimo publicznego startu (redirect SSRF). Limit rozmiaru i
+    timeout - to dane wprowadzone przez użytkownika.
+    """
+    import requests as _requests
+    from cleaner import is_url_allowed
+    cur, hops = url, 0
+    while True:
+        ok, why = is_url_allowed(cur)
+        if not ok:
+            raise ValueError(f"blocked: {why}")
+        r = _requests.get(cur, timeout=40, allow_redirects=False, stream=True,
+                          headers={"User-Agent": "MatrixHunt/2.0 (filterlists)"})
+        if r.status_code in (301, 302, 303, 307, 308):
+            loc = r.headers.get("Location")
+            r.close()
+            if not loc or hops >= max_hops:
+                raise ValueError("too many redirects")
+            cur = urljoin(cur, loc)
+            hops += 1
+            continue
+        r.raise_for_status()
+        chunks, total = [], 0
+        for chunk in r.iter_content(65536):
+            total += len(chunk)
+            if total > max_bytes:
+                r.close()
+                raise ValueError("list too large")
+            chunks.append(chunk)
+        r.close()
+        return b"".join(chunks).decode("utf-8", "replace")
+
+
+def download_custom_lists(settings=None):
+    """Ściąga (i cache'uje) włączone subskrybowane listy. Zwraca {id: błąd}."""
+    if settings is None:
+        from settings_store import read_settings
+        settings = read_settings()
+    CACHE_DIR.mkdir(exist_ok=True)
+    errors = {}
+    for lst in settings.get("custom_lists", []):
+        if not lst.get("enabled", True):
+            continue
+        url = lst["url"]
+        fid = custom_file_id(url)
+        try:
+            (CACHE_DIR / f"{fid}.txt").write_text(_safe_fetch(url), encoding="utf-8")
+        except Exception as e:
+            errors[fid] = str(e)[:80]
+    return errors
+
+
+def custom_engine(src):
+    """Reguły użytkownika: ręczne reguły + ściągnięte własne listy.
+
+    Przyjmuje dict ustawień (nowe) albo sam tekst reguł (kompatybilnie).
+    Zawsze w pełni włączony, sprawdzany przed subskrypcjami - jak user rules
+    w uBlock. Pobierania tu NIE ma: tylko pliki z cache, żeby hot-path
+    /api/clean nigdy nie czekał na sieć.
+    """
     eng = Engine()
+    if isinstance(src, dict):
+        rules_text = src.get("custom_rules", "")
+        lists = src.get("custom_lists", [])
+    else:
+        rules_text, lists = src or "", []
     if rules_text and rules_text.strip():
         eng.add_text(rules_text, "custom")
+    for lst in lists:
+        if not lst.get("enabled", True):
+            continue
+        fid = custom_file_id(lst.get("url", ""))
+        f = CACHE_DIR / f"{fid}.txt"
+        try:
+            if f.exists():
+                eng.add_text(f.read_text(encoding="utf-8", errors="replace"), fid)
+                eng.loaded[fid] = {"updated": f.stat().st_mtime,
+                                   "url": lst.get("url", ""),
+                                   "name": lst.get("name", "")}
+        except OSError:
+            pass
     return eng
 
 

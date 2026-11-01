@@ -1,6 +1,7 @@
 import asyncio
 import aiohttp
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -15,11 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-<<<<<<< HEAD
 from database import init_db, Offer, PriceHistory
-=======
-from database import init_db, Offer
->>>>>>> main
 from sqlalchemy import text
 
 from scrapers.gamerpower import GamerpowerScraper
@@ -36,6 +33,7 @@ from scrapers.humble import HumbleScraper
 from scrapers.gamejolt import GameJoltScraper
 from scrapers.giveawayradar import GiveawayRadarScraper
 from scrapers.reddit import RedditScraper
+from scrapers.lowcygier import LowcyGierScraper
 
 BASE_DIR = Path(__file__).parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
@@ -59,20 +57,36 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-MH-Token"],
 )
 
-app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+# Tryb publiczny (MH_PUBLIC=1): aplikacja tylko do odczytu — blokuje zapisy,
+# scrapowanie i zmiany stanu. Przydatne przy wystawianiu przez Cloudflare
+# Tunnel, żeby nie udostępniać jednoosobowej aplikacji całemu internetowi.
+import os as _os
+_MH_PUBLIC = _os.environ.get("MH_PUBLIC", "").strip() in ("1", "true", "yes")
+
+if _MH_PUBLIC:
+    print("[MH_PUBLIC] tryb tylko-do-odczytu: zapisy i scrapowanie zablokowane")
 app.mount("/tools", StaticFiles(directory=str(TOOLS_DIR)), name="tools")
+# Ruffle self-hosted (.wasm) musi mieć application/wasm, inaczej przeglądarka
+# odmawia inicjalizacji. Na części systemów mimetypes nie zna .wasm.
+import mimetypes as _mimetypes
+_mimetypes.add_type("application/wasm", ".wasm")
 # /data is NOT a blanket static mount. It held data/vulncheck.json, which
 # pins the exact version of every installed dependency, and that file was
 # served to anyone who asked for /data/vulncheck.json with no token. Only the
 # four public catalogues are exposed, by explicit name.
 _PUBLIC_DATA = ("seed_offers.json", "retro.json", "bookmarks.json")
+_DATA_PATHS = {
+    "seed_offers.json": DATA_DIR / "seed_offers.json",
+    "retro.json": DATA_DIR / "retro.json",
+    "bookmarks.json": DATA_DIR / "bookmarks.json",
+}
 
 
 @app.get("/data/{name}")
 async def data_file(name: str):
-    if name not in _PUBLIC_DATA:
+    path = _DATA_PATHS.get(name)
+    if path is None:
         return JSONResponse({"error": "not found"}, status_code=404)
-    path = DATA_DIR / name
     if not path.exists():
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(str(path), media_type="application/json")
@@ -170,8 +184,20 @@ async def _api_guard(request, call_next):
         simply gets no CORS header and the browser blocks the read.
     """
     if request.url.path.startswith("/api/"):
-        if not _is_loopback_host(request.headers.get("host")):
+        # Tryb publiczny (MH_PUBLIC=1): aplikacja tylko-do-odczytu.
+        if _MH_PUBLIC and request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            return JSONResponse({"error": "read-only mode (MH_PUBLIC=1)"}, status_code=403)
+        # Host check: loopback w trybie lokalnym; w publicznym (tunel) Host to domena
+        if not _MH_PUBLIC and not _is_loopback_host(request.headers.get("host")):
             return JSONResponse({"error": "loopback only"}, status_code=403)
+        # CSRF hardening for the proxy endpoints: a cross-origin page may
+        # otherwise trigger a server-side fetch (with the user's stored
+        # cookies for the target host) via <img>/<iframe>/fetch. A request
+        # that carries an Origin header must come from this app's own origin.
+        if request.url.path in ("/api/clean", "/api/img"):
+            origin = request.headers.get("origin")
+            if origin and not _is_own_origin(origin):
+                return JSONResponse({"error": "cross-origin blocked"}, status_code=403)
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             token = request.headers.get("x-mh-token", "")
             if not token or not _token_ok(token):
@@ -204,7 +230,7 @@ SessionFactory = init_db(DB_PATH)
 
 SCRAPER_CLASSES = [
     GamerpowerScraper, EpicScraper, SteamScraper, GOGScraper,
-    IndieGalaScraper, RedditScraper,
+    IndieGalaScraper, RedditScraper, LowcyGierScraper,
 ]
 # Every scraper file is present and imported. The ones below are opt-in
 # because they returned 0 or timed out, and their hanging timeouts dominated
@@ -227,7 +253,6 @@ DISABLED_SCRAPERS = {
     "Itch.io": ItchScraper,
 }
 
-<<<<<<< HEAD
 # Why each one is parked. This was a comment in the source, and /api/scrapers
 # returned status="parked" with no reason, so the dashboard could not tell the
 # user anything except that something was off. Comments are not an interface.
@@ -242,8 +267,6 @@ PARKED_REASON = {
     "Itch.io": "/games/free zwraca strony autorów, nie giveawayy; parser stawiał price=\"Free\" bez czytania strony sklepu",
 }
 
-=======
->>>>>>> main
 
 @app.get("/api/scrapers")
 async def scrapers_status():
@@ -253,12 +276,8 @@ async def scrapers_status():
     for cls in SCRAPER_CLASSES:
         active.append({"name": cls.__name__, "module": cls.__module__.split(".")[-1],
                        "status": "active"})
-<<<<<<< HEAD
     parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked",
                "reason": PARKED_REASON.get(n, "brak zanotowanego powodu")}
-=======
-    parked = [{"name": n, "module": c.__module__.split(".")[-1], "status": "parked"}
->>>>>>> main
               for n, c in DISABLED_SCRAPERS.items()]
     return {"active": active, "parked": parked,
             "counts": {"active": len(active), "parked": len(parked)}}
@@ -311,14 +330,10 @@ def load_seed_catalog():
         print(f"Seed catalog unreadable: {e}")
         return 0
     return save_deals_to_db([
-<<<<<<< HEAD
         SimpleNamespace(title=s["title"], url=s["url"],
                         price=s.get("price", ""),
                         price_claim=s.get("price_claim") or s.get("price") or "Free",
                         price_source=s.get("price_source", "listing:seed-catalog"),
-=======
-        SimpleNamespace(title=s["title"], url=s["url"], price=s.get("price", "Free"),
->>>>>>> main
                         original_price="", category=s.get("category", "games"),
                         source=s.get("source", "SeedCatalog"),
                         description=s.get("description", ""), image_url="",
@@ -328,7 +343,6 @@ def load_seed_catalog():
     ])
 
 
-<<<<<<< HEAD
 def _apply_price(offer, deal):
     """Przepisuje cene na istniejacym wierszu. True, gdy cos sie zmienilo.
 
@@ -349,53 +363,145 @@ def _apply_price(offer, deal):
     return True
 
 
+# Linki do plików wykonywalnych i archiwów nigdy nie są ofertami ze sklepu,
+# tylko śmieciem albo wektorem malwaru (szczególnie z Reddita, gdzie postuje
+# każdy). Testy D4/D5 pilnowały tego na gotowej bazie, czyli na gapę —
+# ta zapora stoi na wejściu i taki URL w ogóle nie dociera do INSERT.
+_UNSAFE_FILE_EXT = (".exe", ".msi", ".bat", ".cmd", ".sh", ".scr", ".com",
+                    ".pif", ".jar", ".zip", ".rar", ".7z", ".tar", ".gz")
+
+
+def _is_unsafe_file_url(url):
+    """True, gdy URL wskazuje wprost plik wykonywalny / archiwum."""
+    try:
+        from urllib.parse import urlsplit
+        path = urlsplit(url).path.lower()
+    except Exception:
+        return True
+    return path.endswith(_UNSAFE_FILE_EXT)
+
+
+# Śmieciowe parametry, które mnożą "różne" URLe do tej samej strony.
+_TRACKING_PARAMS = ("utm_source", "utm_medium", "utm_campaign", "utm_term",
+                    "utm_content", "fbclid", "gclid", "msclkid")
+
+
+def _canonical_url(url):
+    """Jedna postać URL-a do porównań i zapisu: mały host, bez zbędnego
+    slasha na końcu, bez parametrów śledzących, bez kotwicy. Bez tego ten sam
+    giveaway spod .../gra/?utm_source=x i .../gra/ lądował w bazie dwa razy
+    i dashboard pokazywał bliźniaki jeden pod drugim."""
+    try:
+        from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        if not host:
+            return url
+        netloc = host
+        if parts.port and parts.port not in (80, 443):
+            netloc += f":{parts.port}"
+        path = parts.path or ""
+        if len(path) > 1 and path.endswith("/"):
+            path = path[:-1]
+        q = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if k.lower() not in _TRACKING_PARAMS]
+        q.sort()
+        return urlunsplit((parts.scheme.lower(), netloc, path,
+                           urlencode(q), ""))
+    except Exception:
+        return url
+
+
+def _norm_title(title):
+    """Tytuł do porównań: małe litery, bez interpunkcji, pojedyncze spacje."""
+    import re as _re
+    t = (_re.sub(r"[^\w\s]", "", (title or "").lower(), flags=_re.UNICODE))
+    return _re.sub(r"\s+", " ", t).strip()
+
+
+def _merge_twins(offers):
+    """Skleja bliźniaki między źródłami: ta sama gra z Epic (api:) i opisana
+    w artykule Łowców / GamerPower (listing:) to jeden wiersz na stronie.
+    Zostaje pomiar ze sklepu albo nowszy wpis; artykuły znikają z listy,
+    ale ich URLe dalej żyją w bazie (nic nie kasujemy).
+
+    Ostrożnie z podciągami: krótszy tytuł musi mieć min. 8 znaków i pasować
+    na granicach słów, żeby "Doom" nie zjadł "Doom 2016".
+    """
+    import re as _re
+    if len(offers) < 2:
+        return offers
+    norm = [_norm_title(o.title) for o in offers]
+    keep = [True] * len(offers)
+
+    def _rank(i):
+        o = offers[i]
+        api = 1 if (o.price_source or "").startswith("api:") else 0
+        ts = o.created_at.isoformat() if o.created_at else ""
+        return (api, ts)
+
+    # 1) dokładne duplikaty znormalizowanego tytułu: jeden zostaje.
+    seen_title = {}
+    for i, n in enumerate(norm):
+        if not n:
+            continue
+        if n in seen_title:
+            j = seen_title[n]
+            kill = i if _rank(i) < _rank(j) else j
+            keep[kill] = False
+            seen_title[n] = j if kill == i else i
+        else:
+            seen_title[n] = i
+    # 2) artykuł (listing) opisujący grę ze sklepu (api:) znika z listy.
+    prim = [i for i in range(len(offers))
+            if keep[i] and (offers[i].price_source or "").startswith("api:")
+            and len(norm[i]) >= 8]
+    for i in range(len(offers)):
+        if not keep[i] or (offers[i].price_source or "").startswith("api:"):
+            continue
+        for j in prim:
+            if _re.search(r"(?<!\w)" + _re.escape(norm[j]) + r"(?!\w)", norm[i]):
+                keep[i] = False
+                break
+    return [o for k, o in enumerate(offers) if keep[k]]
+
+
 def save_deals_to_db(deals):
     session = SessionFactory()
     new_count = 0
     updated_count = 0
-=======
-def save_deals_to_db(deals):
-    session = SessionFactory()
-    new_count = 0
->>>>>>> main
     try:
         # Only the URLs this batch actually collides with need checking.
         # Pulling every stored URL into a set loaded the whole column into
         # memory on each scrape, then copied it a second time into `seen`;
         # on a large catalog that is tens of thousands of rows for nothing.
-        batch_urls = {d.url for d in deals if getattr(d, "url", None)}
-<<<<<<< HEAD
+        batch_urls = set()
+        for d in deals:
+            if getattr(d, "url", None):
+                batch_urls.add(_canonical_url(d.url))
         existing = {}
         if batch_urls:
             for o in session.query(Offer).filter(Offer.url.in_(batch_urls)):
-                existing[o.url] = o
-=======
-        existing_urls = set()
-        if batch_urls:
-            q = session.query(Offer.url).filter(Offer.url.in_(batch_urls))
-            existing_urls = {row[0] for row in q.all()}
->>>>>>> main
+                existing[_canonical_url(o.url)] = o
         seen = set()
 
         for deal in deals:
-            if not deal.url or deal.url in seen:
+            if not deal.url or _canonical_url(deal.url) in seen:
                 continue
             # Scrapers parse hostile third-party markup; only http(s) links
-<<<<<<< HEAD
             # may reach the DB. Anything else (javascript:, data:, ...) would
-=======
-            # may reach the DB. Anything else (javascript:, data:, …) would
->>>>>>> main
             # flow into href/src attributes on the dashboard. Host check too:
             # "http://" passes a prefix test and is not a usable link.
             if not deal.url.lower().startswith(("http://", "https://")):
                 continue
             if not urlparse(deal.url).hostname:
                 continue
-            seen.add(deal.url)
-<<<<<<< HEAD
+            if _is_unsafe_file_url(deal.url):
+                continue
+            canon = _canonical_url(deal.url)
+            seen.add(canon)
 
-            znany = existing.get(deal.url)
+            znany = existing.get(canon)
             if znany is not None:
                 # Re-running a scrape has to refresh the price. Keys are URLs,
                 # and skipping known ones meant a scraper fixed today could
@@ -413,20 +519,14 @@ def save_deals_to_db(deals):
                         price_source=znany.price_source,
                     ))
                     updated_count += 1
-=======
-            if deal.url in existing_urls:
->>>>>>> main
                 continue
 
             offer = Offer(
-                title=deal.title, url=deal.url, price=deal.price,
-<<<<<<< HEAD
+                title=deal.title, url=canon, price=deal.price,
                 price_claim=getattr(deal, "price_claim", None),
                 price_source=getattr(deal, "price_source", None),
                 price_checked=(datetime.now(timezone.utc)
                                if getattr(deal, "price_source", None) else None),
-=======
->>>>>>> main
                 original_price=deal.original_price, category=deal.category,
                 source=deal.source, description=deal.description,
                 image_url=deal.image_url, requires_login=deal.requires_login,
@@ -434,11 +534,7 @@ def save_deals_to_db(deals):
                 is_adult=deal.is_adult,
             )
             session.add(offer)
-<<<<<<< HEAD
-            existing[deal.url] = offer
-=======
-            existing_urls.add(deal.url)
->>>>>>> main
+            existing[canon] = offer
             new_count += 1
 
         session.commit()
@@ -451,11 +547,7 @@ def save_deals_to_db(deals):
         raise
     finally:
         session.close()
-<<<<<<< HEAD
     return new_count, updated_count
-=======
-    return new_count
->>>>>>> main
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -463,7 +555,6 @@ async def root():
     return FileResponse(str(FRONTEND_DIR / "index.html"))
 
 
-<<<<<<< HEAD
 @app.get("/offers", response_class=HTMLResponse)
 async def offers_page():
     # Osobna trasa, bo strona glowna (sprzet + statystyki) jest zwyklym HTML-em
@@ -477,19 +568,24 @@ async def uwagi_page():
     return FileResponse(str(TOOLS_DIR / "uwagi.html"))
 
 
-=======
->>>>>>> main
 MAX_OFFERS_LIMIT = 1000
 
 
 @app.get("/api/offers")
-async def get_offers(source: str = None, search: str = None, limit: int = 100):
+async def get_offers(source: str = None, search: str = None, limit: int = 100,
+                     nsfw: int = 0):
     # Unbounded limit meant ?limit=1000000000 pulled the whole table into a
     # JSON list; filterlog and db_rows already clamp, this one did not.
     limit = max(1, min(int(limit), MAX_OFFERS_LIMIT))
     session = SessionFactory()
     try:
         query = session.query(Offer).filter(Offer.is_active == True)
+        if not int(nsfw or 0):
+            # Treści 18+ tylko na wyraźne żądanie (?nsfw=1 po bramce wieku
+            # w UI). Default milczy, żeby przypadkowy rzut oka na API/RSS
+            # nie pokazywał dorosłych tytułów. isnot(True) łapie też NULL
+            # ze starych wierszy sprzed kolumny.
+            query = query.filter(Offer.is_adult.isnot(True))
         if source:
             query = query.filter(Offer.source == source)
         if search:
@@ -499,19 +595,17 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
                               .replace("%", r"\%")
                               .replace("_", r"\_"))
             query = query.filter(Offer.title.ilike(f"%{pattern}%"))
-        offers = query.order_by(Offer.created_at.desc()).limit(limit).all()
+        # LIMIT w SQL przed sklejaniem obcinałby losowy podzbiór bliźniaków.
+        # Przy setkach wierszy taniej dobrać w pamięci i przyciąć po mergu.
+        offers = _merge_twins(
+            query.order_by(Offer.created_at.desc()).all())[:limit]
         return [
             {
-<<<<<<< HEAD
                   "id": o.id, "title": o.title, "url": o.url, "price": o.price,
                   "price_claim": o.price_claim,
                   "price_source": o.price_source,
                   "price_checked": o.price_checked.isoformat() if o.price_checked else None,
                   "original_price": o.original_price, "category": o.category,
-=======
-                "id": o.id, "title": o.title, "url": o.url, "price": o.price,
-                "original_price": o.original_price, "category": o.category,
->>>>>>> main
                 "source": o.source, "description": o.description,
                 "image_url": o.image_url, "requires_login": o.requires_login,
                 "has_adfly": o.has_adfly, "has_captcha": o.has_captcha,
@@ -524,7 +618,6 @@ async def get_offers(source: str = None, search: str = None, limit: int = 100):
         session.close()
 
 
-<<<<<<< HEAD
 @app.get("/api/price-changes")
 async def price_changes(limit: int = 30):
     """Ostatnie zmiany cen, najnowsze pierwsze.
@@ -550,8 +643,6 @@ async def price_changes(limit: int = 30):
         session.close()
 
 
-=======
->>>>>>> main
 @app.get("/api/stats")
 async def get_stats():
     session = SessionFactory()
@@ -559,7 +650,6 @@ async def get_stats():
         total = session.query(Offer).count()
         active = session.query(Offer).filter(Offer.is_active == True).count()
         sources = session.execute(text("SELECT source, COUNT(*) FROM offers GROUP BY source")).fetchall()
-<<<<<<< HEAD
         # Ile cen jest zmierzonych, ile tylko zgloszonych, a ile wcale.
         # Strona glowna pokazuje te trzy liczby osobno, bo "darmowe" bez
         # informacji, kto to sprawdzil, jest tym samym klamstwem co kiedys.
@@ -572,11 +662,6 @@ async def get_stats():
             "price_measured": measured,
             "price_claimed": claimed,
             "price_unknown": total - measured - claimed,
-=======
-        return {
-            "total": total, "active": active,
-            "sources": {s[0]: s[1] for s in sources},
->>>>>>> main
             "last_update": datetime.now(timezone.utc).isoformat(),
         }
     finally:
@@ -585,18 +670,11 @@ async def get_stats():
 
 @app.post("/api/scrape")
 async def trigger_scrape():
-<<<<<<< HEAD
     wynik = await guarded_scrape()
     if wynik is None:
         return JSONResponse({"status": "busy", "detail": "scrape already running"}, status_code=409)
     new, updated = wynik
     return {"status": "ok", "new": new, "updated": updated}
-=======
-    new = await guarded_scrape()
-    if new is None:
-        return JSONResponse({"status": "busy", "detail": "scrape already running"}, status_code=409)
-    return {"status": "ok", "new": new}
->>>>>>> main
 
 
 @app.get("/api/favorites")
@@ -629,6 +707,27 @@ async def flash_player():
     return FileResponse(str(TOOLS_DIR / "flash_player.html"))
 
 
+@app.get("/muzeum")
+async def muzeum():
+    """Muzeum okazów: lokalna kolekcja ataków złapanych przez sanityzer."""
+    return FileResponse(str(TOOLS_DIR / "muzeum.html"))
+
+
+@app.get("/api/specimens")
+async def specimens_list(limit: int = 200):
+    """Okazy ataków (najnowsze pierwsze) + zestawienie. Tylko loopback."""
+    import specimens
+    return {"stats": specimens.stats(),
+            "items": specimens.tail(limit=max(1, min(limit, 1000)))}
+
+
+@app.get("/api/linkcheck")
+async def linkcheck(url: str):
+    """Werdykt dla adresu (link doctor). Nie pobiera treści strony. Loopback."""
+    import linkdoctor
+    return await asyncio.to_thread(linkdoctor.check_url, url)
+
+
 @app.get("/sw.js")
 async def service_worker():
     # Served from the root so the worker gets "/" scope rather than "/static/".
@@ -645,7 +744,7 @@ async def web_manifest():
 
 
 @app.api_route("/api/clean", methods=["GET", "POST"])
-async def clean_proxy(url: str, request: Request):
+async def clean_proxy(url: str, request: Request, ephemeral: int = 0):
     """Fetch an external page, strip ads/trackers/scripts, return clean HTML.
 
     Separate cookie session per host: logins stay in backend/.cookies/ and
@@ -653,16 +752,19 @@ async def clean_proxy(url: str, request: Request):
     stored - only Set-Cookie responses land in the jar). Every hop (including
     redirects) passes the SSRF gate. Non-HTML answers 415 so the viewer can
     fall back to a direct link instead of framing a download.
+
+    ?ephemeral=1 to tryb ulotny: słoik żyje tylko w RAM (30 min bezczynności
+    albo restart/wyczyszczenie), dysk nietknięty. Do logowania "na raz".
     """
     import asyncio
     post_body = await request.body() if request.method == "POST" else None
     return await asyncio.to_thread(
         _clean_sync, url, request.method,
         {"content-type": request.headers.get("content-type", "")},
-        dict(request.query_params), post_body)
+        dict(request.query_params), post_body, bool(int(ephemeral or 0)))
 
 
-def _clean_sync(url, method, headers, query_params, post_body):
+def _clean_sync(url, method, headers, query_params, post_body, ephemeral=False):
     import requests as _requests
     from fastapi.responses import JSONResponse
     from sessions import persist_from_requests, session_state, attach_to_requests
@@ -680,7 +782,8 @@ def _clean_sync(url, method, headers, query_params, post_body):
     else:
         # GET forms (search boxes) arrive with extra query params - merge
         # them into the target instead of dropping the user's input.
-        extra = [(k, v) for k, v in query_params.items() if k != "url"]
+        # "url" and "ephemeral" are ours, never the target's.
+        extra = [(k, v) for k, v in query_params.items() if k not in ("url", "ephemeral")]
         if extra:
             from urllib.parse import urlencode
             sep = "&" if "?" in target else "?"
@@ -704,7 +807,11 @@ def _clean_sync(url, method, headers, query_params, post_body):
         sess.proxies.update(proxies)
         sess.trust_env = False
         check_dns = False
-    attach_to_requests(host, sess)
+    if ephemeral:
+        from sessions import attach_ephemeral as _attach_eph
+        _attach_eph(host, sess)
+    else:
+        attach_to_requests(host, sess)
 
     current, cur_method, cur_body = target, method, body
     try:
@@ -718,11 +825,12 @@ def _clean_sync(url, method, headers, query_params, post_body):
             try:
                 r = sess.request(cur_method, current, data=cur_body,
                                  headers=req_headers, timeout=15,
-                                 allow_redirects=False)
-            except Exception as e:
-                return JSONResponse({"error": f"fetch failed: {e}"}, status_code=502)
+                                 allow_redirects=False, stream=True)
+            except Exception:
+                return JSONResponse({"error": "fetch failed"}, status_code=502)
             if r.status_code in (301, 302, 303, 307, 308):
                 location = r.headers.get("Location", "")
+                r.close()
                 if not location:
                     return JSONResponse({"error": "empty redirect"}, status_code=502)
                 current = urljoin(current, location)
@@ -742,49 +850,77 @@ def _clean_sync(url, method, headers, query_params, post_body):
                     429: "rate limited by the store, try again later",
                     451: "blocked for legal reasons at the store",
                 }.get(r.status_code, "the store returned an error")
+                r.close()
                 return JSONResponse(
                     {"error": f"upstream {r.status_code}", "reason": why,
                      "url": current},
                     status_code=502)
             ctype = r.headers.get("Content-Type", "")
             if "html" not in ctype.lower():
+                r.close()
                 return JSONResponse(
                     {"error": "not HTML", "content_type": ctype, "url": current},
                     status_code=415,
                 )
-            if len(r.content) > MAX_BYTES:
+            # Bounded read: never buffer an unbounded upstream body. Without
+            # stream=True a remote page (or a CSRF-triggered GET /api/clean
+            # aimed at an attacker URL) could stream gigabytes into RAM before
+            # the old post-hoc len(r.content) check ever ran.
+            chunks, total, too_big = [], 0, False
+            for chunk in r.iter_content(65536):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > MAX_BYTES:
+                    too_big = True
+                    break
+                chunks.append(chunk)
+            encoding = r.encoding or "utf-8"
+            r.close()
+            if too_big:
                 return JSONResponse({"error": "page too large"}, status_code=413)
+            html_text = b"".join(chunks).decode(encoding, "replace")
             # Persist against the host we actually ended on. Using the host
             # from the ORIGINAL url merged every cookie a redirect target set
             # into the first host's jar, which broke the per-site isolation
             # the viewer promises, and "forget this site" then logged the
             # other site out too.
             final_host = urlparse(current).hostname or host
-            persist_from_requests(final_host, sess)
+            if ephemeral:
+                from sessions import persist_ephemeral as _persist_eph
+                from sessions import ephemeral_state as _eph_state
+                _persist_eph(final_host, sess)
+                state = _eph_state(final_host)
+            else:
+                persist_from_requests(final_host, sess)
+                state = session_state(final_host)
             from filterlists import get_engine, custom_engine, elog
-            flt = {"engine": get_engine(),
-                   "custom": custom_engine(settings.get("custom_rules", "")),
-                   "enabled": frozenset(lid for lid, on in
-                                        settings.get("filter_lists", {}).items() if on),
-                   "log": True}
-            # Page-level $network rules (badware list): refuse known-filthy
-            # pages outright with 451 instead of framing them.
-            blocked, rule = flt["engine"].check(current, current, "document",
-                                                enabled=flt["enabled"])
-            if blocked and getattr(rule, "network", False):
-                elog.add(current, current, rule, "blocked-page")
-                return JSONResponse(
-                    {"error": "page blocked by filter list",
-                     "rule": rule.raw[:160], "list": rule.list_id},
-                    status_code=451)
-            cleaned, removed, filtered = clean_html(r.text, current, flt=flt)
-            state = session_state(final_host)
+            if settings.get("filters_enabled", True):
+                flt = {"engine": get_engine(),
+                       "custom": custom_engine(settings),
+                       "enabled": frozenset(lid for lid, on in
+                                            settings.get("filter_lists", {}).items() if on),
+                       "log": True}
+                # Page-level $network rules (badware list): refuse known-filthy
+                # pages outright with 451 instead of framing them.
+                blocked, rule = flt["engine"].check(current, current, "document",
+                                                    enabled=flt["enabled"])
+                if blocked and getattr(rule, "network", False):
+                    elog.add(current, current, rule, "blocked-page")
+                    return JSONResponse(
+                        {"error": "page blocked by filter list",
+                         "rule": rule.raw[:160], "list": rule.list_id},
+                        status_code=451)
+            else:
+                flt = None
+            cleaned, removed, filtered = clean_html(html_text, current, flt=flt)
             return HTMLResponse(
                 content=cleaned,
                 headers={"X-MH-Cleaned": str(removed), "X-MH-Source": current,
                          "X-MH-Filtered": str(filtered),
                          "X-MH-Host": final_host,
-                         "X-MH-Session": "active" if state["has_session"] else "none"},
+                         "X-MH-Session": "active" if state["has_session"] else "none",
+                         "X-MH-Ephemeral": "1" if ephemeral else "0"},
             )
         return JSONResponse({"error": "too many redirects"}, status_code=502)
     finally:
@@ -820,35 +956,71 @@ async def sessions_forget_all():
     return {"forgotten_sites": forget_all()}
 
 
+@app.get("/api/sessions-ephemeral")
+async def sessions_ephemeral_list():
+    """Sesje ulotne (RAM): co żyje w tej chwili. Liczniki, nie wartości."""
+    from sessions import list_ephemeral
+    return {"ephemeral": list_ephemeral()}
+
+
+@app.delete("/api/sessions-ephemeral")
+async def sessions_ephemeral_forget_all():
+    """Wyczyść WSZYSTKIE sesje ulotne z RAM. Dysk i tak jest nietknięty."""
+    from sessions import forget_ephemeral_all
+    return {"forgotten_ephemeral": forget_ephemeral_all()}
+
+
+@app.delete("/api/sessions-ephemeral/{host}")
+async def sessions_ephemeral_forget(host: str):
+    """Wyczyść ulotną sesję jednego hosta z RAM."""
+    from sessions import forget_ephemeral
+    if not re.fullmatch(r"[A-Za-z0-9.-]{1,100}", host):
+        raise HTTPException(status_code=400, detail="bad host")
+    return {"forgotten": forget_ephemeral(host.lower()), "host": host.lower()}
+
+
 @app.get("/api/filterlists")
 async def filterlists_status():
-    """Subscription lists: rule counts, last update, on/off state."""
-    from filterlists import get_engine, LISTS
+    """Subscription lists: rule counts, last update, on/off state, custom lists."""
+    from filterlists import get_engine, custom_engine, custom_file_id, LISTS
     from settings_store import read_settings
     eng = get_engine()
     settings = read_settings()
     enabled = settings.get("filter_lists", {})
+    cent = custom_engine(settings)
     custom_n = len([l for l in (settings.get("custom_rules") or "").splitlines()
                     if l.strip() and not l.strip().startswith("!")])
-    return {"lists": [
-        {"id": lid, "name": meta["name"], "url": meta["url"],
-         "enabled": bool(enabled.get(lid, True)),
-         "rules": eng.stats.get(lid, {}).get("network", 0),
-         "exceptions": eng.stats.get(lid, {}).get("exceptions", 0),
-         "updated": eng.loaded.get(lid, {}).get("updated", 0),
-         "error": eng.loaded.get(lid, {}).get("error")}
-        for lid, meta in LISTS.items()],
+    return {
+        "filters_enabled": bool(settings.get("filters_enabled", True)),
+        "lists": [
+            {"id": lid, "name": meta["name"], "url": meta["url"],
+             "enabled": bool(enabled.get(lid, True)),
+             "rules": eng.stats.get(lid, {}).get("network", 0),
+             "exceptions": eng.stats.get(lid, {}).get("exceptions", 0),
+             "updated": eng.loaded.get(lid, {}).get("updated", 0),
+             "error": eng.loaded.get(lid, {}).get("error")}
+            for lid, meta in LISTS.items()],
+        "custom_lists": [
+            {"id": custom_file_id(lst["url"]), "name": lst.get("name", ""),
+             "url": lst["url"], "enabled": bool(lst.get("enabled", True)),
+             "rules": cent.stats.get(custom_file_id(lst["url"]), {}).get("network", 0),
+             "updated": cent.loaded.get(custom_file_id(lst["url"]), {}).get("updated", 0)}
+            for lst in settings.get("custom_lists", [])],
         "custom_rules": custom_n}
 
 
 @app.post("/api/filterlists/refresh")
 async def filterlists_refresh():
-    """Force re-download of all subscription lists."""
-    from filterlists import reset_engine, get_engine
-    reset_engine()
-    eng = get_engine()
-    return {"lists": len(eng.loaded),
-            "errors": {lid: v.get("error") for lid, v in eng.loaded.items() if v.get("error")}}
+    """Force re-download of all subscription lists (built-in + custom)."""
+    def _work():
+        from filterlists import reset_engine, get_engine, download_custom_lists
+        reset_engine()
+        eng = get_engine()
+        errors = {lid: v.get("error") for lid, v in eng.loaded.items()
+                  if v.get("error")}
+        errors.update(download_custom_lists())
+        return {"lists": len(eng.loaded), "errors": errors}
+    return await asyncio.to_thread(_work)
 
 
 @app.get("/api/filterlog")
@@ -927,10 +1099,10 @@ def _img_sync(url):
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MatrixHunt-Viewer/2.0",
                 "Accept": "image/*",
             })
-        except Exception as e:
+        except Exception:
             if r is not None:
                 r.close()
-            return JSONResponse({"error": f"fetch failed: {e}"}, status_code=502)
+            return JSONResponse({"error": "fetch failed"}, status_code=502)
         if r.status_code in (301, 302, 303, 307, 308):
             loc = r.headers.get("Location", "")
             r.close()
@@ -1071,25 +1243,37 @@ async def db_tables():
         con.close()
 
 
+def _qident(name: str) -> str:
+    """Quote an SQL identifier safely (double-quote, escape inner quotes).
+    Only called after table name has been allowlisted + regex-validated."""
+    return '"' + name.replace('"', '""') + '"'
+
+
 @app.get("/api/db/rows")
 async def db_rows(table: str, search: str = "", page: int = 1, limit: int = 100):
     # Table names can never be bound parameters - allowlist against the
     # schema instead (the desktop original interpolated them raw).
-    if table not in _db_tables():
+    # Re-derive table from the schema so user-controlled input never
+    # reaches the SQL string - only validated names from the database do.
+    _valid_tables = {t["table"] for t in _db_tables()}
+    if table not in _valid_tables:
         raise HTTPException(status_code=400, detail="unknown table")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+        raise HTTPException(status_code=400, detail="unknown table")
+    table = next(t for t in _valid_tables if t == table)
     limit = max(1, min(limit, 200))
     page = max(1, page)
     con = _db_ro()
     try:
-        cols = [r[1] for r in con.execute(f'PRAGMA table_info("{table}")')]
+        cols = [r[1] for r in con.execute(f'PRAGMA table_info({_qident(table)})')]
         where, params = "", []
         if search:
             text_cols = [c for c in cols]
             where = "WHERE " + " OR ".join(f'CAST("{c}" AS TEXT) LIKE ?' for c in text_cols)
             params = [f"%{search}%"] * len(text_cols)
-        total = con.execute(f'SELECT COUNT(*) FROM "{table}" {where}', params).fetchone()[0]
+        total = con.execute(f'SELECT COUNT(*) FROM {_qident(table)} {where}', params).fetchone()[0]
         rows = con.execute(
-            f'SELECT * FROM "{table}" {where} LIMIT ? OFFSET ?',
+            f'SELECT * FROM {_qident(table)} {where} LIMIT ? OFFSET ?',
             params + [limit, (page - 1) * limit]).fetchall()
         return {"table": table, "columns": cols, "total": total,
                 "page": page, "limit": limit,
@@ -1118,8 +1302,8 @@ async def settings_set(request: Request):
     key, value = payload.get("key"), payload.get("value")
     try:
         return write_setting(key, value)
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=400)
+    except ValueError:
+        return JSONResponse({"error": "invalid setting"}, status_code=400)
 
 
 @app.get("/api/netcheck")
@@ -1241,7 +1425,10 @@ async def steam_logout(request: Request):
 async def rss_feed():
     session = SessionFactory()
     try:
-        offers = session.query(Offer).filter(Offer.is_active == True).order_by(Offer.created_at.desc()).limit(50).all()
+        # RSS nie ma bramki wieku, więc 18+ nigdy tu nie trafia.
+        offers = session.query(Offer).filter(Offer.is_active == True,
+                                             Offer.is_adult.isnot(True)
+                                             ).order_by(Offer.created_at.desc()).limit(50).all()
         # Titles/URLs come from third-party markup. Without escaping, a title
         # like "</title></item><item><title>x" forges feed entries and a
         # "<script>" title lands raw in reader DOMs (confirmed live).
@@ -1260,8 +1447,8 @@ async def rss_feed():
         session.close()
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app):
     # CORS must be pinned to the port we actually listen on, and it has to
     # happen for EVERY launch method. It used to run only under
     # `python main.py`, so `uvicorn main:app` - the documented FastAPI way -
@@ -1301,11 +1488,7 @@ async def startup():
     try:
         if session.query(Offer).count() < 20:
             try:
-<<<<<<< HEAD
                 n, _ = load_seed_catalog()
-=======
-                n = load_seed_catalog()
->>>>>>> main
                 print(f"Seed catalog: {n} permanent-free titles ensured.")
             except Exception as e:
                 print(f"Seed catalog write failed: {e}")
@@ -1313,6 +1496,10 @@ async def startup():
         session.close()
     bound = getattr(app.state, "port", None) or 8000
     print(f"MatrixHunt Ultimate ready on http://localhost:{bound}")
+    yield
+
+
+app.router.lifespan_context = lifespan
 
 
 def probe_app(port):
@@ -1393,9 +1580,11 @@ def _lock_cors_to_port(port):
 
 
 if __name__ == "__main__":
+    import os as _os
     import uvicorn
+    _host = _os.environ.get("MH_HOST", "127.0.0.1").strip() or "127.0.0.1"
     port = find_port()
     app.state.port = port
     _lock_cors_to_port(port)
-    print(f"MatrixHunt Ultimate ready on http://localhost:{port}")
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    print(f"MatrixHunt Ultimate ready on http://{_host}:{port}")
+    uvicorn.run(app, host=_host, port=port)

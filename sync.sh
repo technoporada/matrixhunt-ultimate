@@ -1,6 +1,14 @@
-cd /home/h5n1/Pulpit/katalog/Documents/matrixhunt-ultimate
-A=/home/h5n1/Pulpit/katalog/Documents/tmpopencode/matrixhunt-ultimate
-B=/home/h5n1/Pulpit/katalog/Documents/matrixhunt-ultimate
+#!/usr/bin/env bash
+# Lustro do drugiej lokalnej kopii. Bez twardych ścieżek /home/...:
+#   B = katalog tego skryptu (źródło)
+#   A = katalog docelowy z $1 albo $MIRROR_DIR
+set -u
+B="$(cd "$(dirname "$0")" && pwd)"
+A="${1:-${MIRROR_DIR:-}}"
+if [ -z "$A" ]; then
+  echo "użycie: $0 <katalog-docelowy>  (albo MIRROR_DIR=<katalog-docelowy> $0)" >&2
+  exit 2
+fi
 # _testy_usuniete/ holds the only copy of the removed test file. A previous
 # --delete run emptied it because the directory was not excluded, so the
 # exclusion is mandatory, not optional.
@@ -16,6 +24,7 @@ EXCLUDES=(
   --exclude=.filterlists
   --exclude=_testy_usuniete
   --exclude=sync.sh
+  --exclude=.tmp
 )
 
 # Trailing slash on both sides: without it rsync can decide a subdirectory is
@@ -29,10 +38,10 @@ skip_rel() {
   # backend/.cookies/y.json slipped through and were reported as differences.
   case "/$1/" in
     */.venv/*|*/__pycache__/*|*/.pytest_cache/*|*/.filterlists/*|\
-    */.cookies/*|*/_testy_usuniete/*) return 0 ;;
+    */.cookies/*|*/_testy_usuniete/*|*/.tmp/*) return 0 ;;
   esac
   case "$1" in
-    .venv|__pycache__|.pytest_cache|.filterlists|.cookies|_testy_usuniete|\
+    .venv|__pycache__|.pytest_cache|.filterlists|.cookies|_testy_usuniete|.tmp|\
     *.db|*.pyc|.app_settings.json|.session_secret|.vault_verifier|sync.sh) return 0 ;;
   esac
   # Per-machine state: each copy keeps its own session secret and settings,

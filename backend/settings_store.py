@@ -14,8 +14,10 @@ DEFAULTS = {
     "proxy_clean": True,    # antysyf cleaner in /api/clean + viewer routing
     "tor": False,           # route cleaner traffic via Tor SOCKS (if reachable)
     "upstream_proxy": "",   # e.g. http://127.0.0.1:8080 (empty = direct)
+    "filters_enabled": True,  # globalny wyłącznik filtrowania (uBlock-style power)
     "filter_lists": {"easylist": True, "easyprivacy": True,
                      "polish": True, "badware": True},
+    "custom_lists": [],     # subskrybowane listy: [{"url","name","enabled"}]
     "custom_rules": "",     # user filter rules, uBlock syntax, max 64KB
 }
 
@@ -77,6 +79,8 @@ def read_settings():
     except ValueError:
         data["upstream_proxy"] = ""
     data["filter_lists"] = _validate_lists(data.get("filter_lists"))
+    data["filters_enabled"] = bool(data.get("filters_enabled", True))
+    data["custom_lists"] = _validate_custom_lists(data.get("custom_lists", []))
     data["custom_rules"] = _validate_custom(data.get("custom_rules", ""))
     return data
 
@@ -116,15 +120,45 @@ def _validate_custom(value):
     return value
 
 
+def _validate_custom_lists(value):
+    """Subskrybowane listy filtrów: [{"url","name","enabled"}].
+
+    Trzyma się tylko HTTP(S) z hostem - właściwa bramka SSRF (zakaz hostów
+    prywatnych + rewalidacja każdego przekierowania) jest w cleanroomie
+    pobierania, bo walidacja przy zapisie nie rozstrzygnie DNS.
+    """
+    if not isinstance(value, list):
+        raise ValueError("custom_lists must be a list")
+    out, seen = [], set()
+    for item in value[:50]:
+        if not isinstance(item, dict):
+            raise ValueError("custom list must be an object")
+        url = str(item.get("url", "")).strip()
+        if not url or len(url) > 2048:
+            raise ValueError("bad list url")
+        parts = urlparse(url)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ValueError("list url must be http(s)")
+        if url in seen:
+            continue
+        seen.add(url)
+        name = str(item.get("name") or parts.hostname)[:80]
+        out.append({"url": url, "name": name,
+                    "enabled": _as_bool(item.get("enabled", True))})
+    return out
+
+
 def write_setting(key, value):
     if key not in DEFAULTS:
         raise ValueError(f"unknown setting: {key}")
-    if key in ("proxy_clean", "tor"):
+    if key in ("proxy_clean", "tor", "filters_enabled"):
         value = _as_bool(value)
     elif key == "upstream_proxy":
         value = _validate_upstream(value)
     elif key == "filter_lists":
         value = _validate_lists(value)
+    elif key == "custom_lists":
+        value = _validate_custom_lists(value)
     elif key == "custom_rules":
         value = _validate_custom(value)
     data = read_settings()
