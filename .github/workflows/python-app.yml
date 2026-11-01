@@ -18,9 +18,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     - name: Set up Python 3.11
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@a26af69be951a213d495a4c7e85d3d6d1c0efef1
       with:
         python-version: "3.11"
     - name: Install dependencies
