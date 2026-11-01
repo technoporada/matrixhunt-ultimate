@@ -45,7 +45,7 @@ sklepów/agregatorów, list filtrów (EasyList i spółka) oraz audytu zależno�
 Wszystkie podstrony mają górne menu z 10 linkami — nic nie jest schowane w stopce.
 
 | Adres | Co to jest |
-|---|---|
+| --- | --- |
 | `/` | dashboard ofert |
 | `/offers` | lista ofert (osobny widok) |
 | `/view` | proxy stron: wklej URL sklepu, dostajesz oczyszczoną wersję (goły `/view` to ekran startowy) |
@@ -61,7 +61,7 @@ Wszystkie podstrony mają górne menu z 10 linkami — nic nie jest schowane w s
 Pełna lista tras: `grep -oE '@app\.(get|post|put|delete)\(' backend/main.py | wc -l` (46 tras).
 
 | Grupa | Trasy |
-|---|---|
+| --- | --- |
 | Oferty | `GET /api/offers`, `GET /api/stats`, `GET /api/scrapers`, `POST /api/scrape`, `GET /api/price-changes` |
 | Proxy | `/api/clean`, `/api/img`, `/api/netcheck`, `/api/filterlists`, `/api/filterlog` |
 | Sesje | `/api/sessions`, `/api/sessions-ephemeral`, `/api/auth/steam/*` |
@@ -79,7 +79,7 @@ Zasady:
 ## 4. Źródła danych
 
 | Aktywne (7) | Skąd biorą tytuły |
-|---|---|
+| --- | --- |
 | GamerPower | agregator: `gamerpower.com/api/giveaways` |
 | Epic | oficjalne API: darmowe gry tygodnia |
 | Steam | wyszukiwarka + oficjalne `api/appdetails` na grę |
@@ -102,7 +102,7 @@ zero pomiarów `api:*` poza scraperami API.
 ## 5. Bezpieczeństwo
 
 | Ryzyko | Zabezpieczenie |
-|---|---|
+| --- | --- |
 | CSRF / obce originy | token `X-MH-Token` + strażnik `_api_guard` (tylko loopback) |
 | SSRF przez proxy | bramka `is_url_allowed` na każdym hopy (bloki: intranet, metadata, `file:`, porty) |
 | XSS z obcych stron | sanacja HTML (`clean_html`), resourcy tylko z allowlist; schematy (`javascript:`/`data:`) zdejmowane **po normalizacji** znaków sterujących (obfuskacja tab/newline) |
@@ -153,7 +153,7 @@ node tools/smoke_render.js                  # render `/`, `/offers`, `/view` bez
 ```
 
 | Plik | Co sprawdza |
-|---|---|
+| --- | --- |
 | `tests/test_ceny.py` | niezmienniki cen na prawdziwych plikach i bazie (żadnego `Free` bez `api:*`) |
 | `tests/test_niezmienniki.py` | filtry, baza, serwer, F2P/DLC |
 | `tests/test_niezalezne.py` | zachowanie na spreparowanych danych: logika cen, SSRF, migracja, martwe linki, offline, punktacja JS, bramka 18+, parser Łowców, render frontendów, sklejanie bliźniaków, jeden `site.js`, kanon 10 linków + filtr źródeł, toggle PL/EN, sanityzer wstrzyknięć i muzeum okazów, link doctor |
@@ -163,7 +163,7 @@ przy żywym błędzie (`Deal.price` domyślnie `"Free"`), dopisaliśmy testy, kt
 
 ## 9. Struktura projektu
 
-```
+```text
 backend/            # FastAPI: main.py, scrapers/, cleaner, vault, sessions, DB
 frontend/           # / i /offers (React zvendorowany) + vendor/ (Ruffle, Babel)
 tools/              # strony /view /retro /wiki /flash /db /muzeum + skrypty (build, smoke, skan)
@@ -191,10 +191,12 @@ MatrixHunt to aplikacja local-first. Jeśli chcesz ją wystawić (demo, self-hos
 bez ujawniania IP:
 
 - **Cloudflare Tunnel** + **tryb read-only**:
+
   ```bash
   MH_PUBLIC=1 MH_HOST=0.0.0.0 ./bootstrap.sh   # zablokuj zapisy/scrapowanie
   ./tools/cloudflared_setup.sh matrixhunt.twojadomena.pl
   ```
+
   Włącz **Cloudflare Access** (Zero Trust) — bez tego każdy kto zna URL ma dostęp.
 - **Tailscale** (zalecane dla użytku prywatnego): mesh VPN, brak publicznego URL.
 - **IP podczas scrapowania**: sklepy widzą Twoje IP — włącz tryb Tor w ustawieniach
